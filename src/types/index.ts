@@ -6,7 +6,9 @@ export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
 
 export type Scene = 'daily' | 'business' | 'travel'
 
-export type SpeakingState = 'user-speaking' | 'ai-speaking' | 'listening' | 'idle'
+export type SpeakingState = 'user-speaking' | 'ai-speaking' | 'listening' | 'idle' | 'encouraging'
+
+export type ListeningState = 'inactive' | 'listening' | 'paused-encouraging' | 'processing'
 
 export interface Message {
   id: string
@@ -21,6 +23,7 @@ export interface UserSettings {
   difficulty: Difficulty
   speed: number
   correctionEnabled: boolean
+  listeningModeEnabled: boolean
   lastScene: Scene
   apiKey: string
   apiUrl: string
@@ -40,6 +43,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   difficulty: 'intermediate',
   speed: 1.0,
   correctionEnabled: true,
+  listeningModeEnabled: false,
   lastScene: 'daily',
   apiKey: '',
   apiUrl: 'https://api.deepseek.com/v1',
@@ -62,6 +66,12 @@ export const SCENE_LABELS: Record<Scene, string> = {
   daily: '日常闲聊',
   business: '商务会议',
   travel: '旅行英语',
+}
+
+export const SCENE_ICONS: Record<Scene, string> = {
+  daily: '💬',
+  business: '💼',
+  travel: '✈️',
 }
 
 export const AI_NAMES: Record<Accent, string> = {

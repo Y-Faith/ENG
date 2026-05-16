@@ -9,11 +9,12 @@ interface CallAreaProps {
   messages: Message[]
   levels: number[]
   decibels: number
+  revealedChars: number
   onHangup: () => void
   onCall: () => void
 }
 
-export function CallArea({ status, speakingState, messages, levels, decibels, onHangup, onCall }: CallAreaProps) {
+export function CallArea({ status, speakingState, messages, levels, decibels, revealedChars, onHangup, onCall }: CallAreaProps) {
   const isActive = status === 'connected' || status === 'dialing'
 
   return (
@@ -41,7 +42,7 @@ export function CallArea({ status, speakingState, messages, levels, decibels, on
       )}
 
       {status === 'connected' && (
-        <ConversationBubbles messages={messages} />
+        <ConversationBubbles messages={messages} revealedChars={revealedChars} />
       )}
 
       {status === 'ended' && (

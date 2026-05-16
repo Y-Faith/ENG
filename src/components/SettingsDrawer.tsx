@@ -7,10 +7,12 @@ interface SettingsDrawerProps {
   accent: Accent
   difficulty: Difficulty
   correctionEnabled: boolean
+  listeningModeEnabled: boolean
   apiKey: string
   onAccentChange: (accent: Accent) => void
   onDifficultyChange: (difficulty: Difficulty) => void
   onCorrectionToggle: () => void
+  onListeningModeToggle: () => void
   onApiKeyChange: (apiKey: string) => void
   onClose: () => void
 }
@@ -20,10 +22,12 @@ export function SettingsDrawer({
   accent,
   difficulty,
   correctionEnabled,
+  listeningModeEnabled,
   apiKey,
   onAccentChange,
   onDifficultyChange,
   onCorrectionToggle,
+  onListeningModeToggle,
   onApiKeyChange,
   onClose,
 }: SettingsDrawerProps) {
@@ -138,6 +142,24 @@ export function SettingsDrawer({
               开启后，AI 会实时指出发音或语法错误
             </p>
           </div>
+
+          <div className="setting-group">
+            <label className="setting-label">倾听模式</label>
+            <div className="toggle-row">
+              <span>{listeningModeEnabled ? '已开启' : '已关闭'}</span>
+              <button
+                className={`toggle-btn ${listeningModeEnabled ? 'on' : 'off'}`}
+                onClick={onListeningModeToggle}
+              >
+                <div className="toggle-thumb" />
+              </button>
+            </div>
+            <p className="setting-hint">
+              适合初学者。AI 会在你停顿思考时给予鼓励，等你完整表达后再回应
+            </p>
+          </div>
+
+
         </div>
       </div>
     </>

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { CallStatus, SpeakingState, Message, Accent, Difficulty, Scene, UserSettings } from './types'
 import { DEFAULT_SETTINGS } from './types'
-import { getGreeting, generateAIResponse, getCorrection } from './data/scenarios'
+import { getGreeting, generateAIResponse, getCorrection, generateEncouragement } from './data/scenarios'
 import { useSpeechRecognition } from './hooks/useSpeechRecognition'
 import { useSpeechSynthesis } from './hooks/useSpeechSynthesis'
 import { useCallTimer } from './hooks/useCallTimer'
@@ -30,6 +30,11 @@ function App() {
   const [currentView, setCurrentView] = useState<'call' | 'history'>('call')
   const [textInput, setTextInput] = useState('')
   const [usingAI, setUsingAI] = useState(false)
+  const [revealedChars, setRevealedChars] = useState(0)
+
+  const handleWordByWordToggle = useCallback(() => {
+    setSettings((prev) => ({ ...prev, wordByWordEnabled: !prev.wordByWordEnabled }))
+  }, [setSettings])
 
   const isProcessingRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
@@ -73,7 +78,30 @@ function App() {
     return msg
   }, [])
 
-  const speechSynth = useSpeechSynthesis()
+  const speechSynth = useSpeechSynthesis({
+    onWord: (charIndex: number) => {
+      setRevealedChars(charIndex)
+    },
+  })
+
+  const revealIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const startRevealInterval = useCallback((text: string, startTime: number, speed: number) => {
+    if (revealIntervalRef.current) clearInterval(revealIntervalRef.current)
+    const charsPerSec = 14 * speed
+    revealIntervalRef.current = setInterval(() => {
+      const elapsed = (Date.now() - startTime) / 1000
+      const target = Math.min(Math.floor(elapsed * charsPerSec), text.length)
+      setRevealedChars(target)
+    }, 30)
+  }, [])
+
+  const stopRevealInterval = useCallback(() => {
+    if (revealIntervalRef.current) {
+      clearInterval(revealIntervalRef.current)
+      revealIntervalRef.current = null
+    }
+  }, [])
 
   const processAIResponse = useCallback(
     async (userText: string) => {
@@ -89,15 +117,25 @@ function App() {
       addMessage('user', userText, correction)
 
       try {
-        const { text: response, usedAI } = await generateAIResponse(userText, lastScene, difficulty, history, apiKey, apiUrl, apiModel)
+        const { text: response, usedAI } = await generateAIResponse(userText, lastScene, difficulty, history, correctionEnabled, apiKey, apiUrl, apiModel)
         setUsingAI(usedAI)
         addMessage('ai', response)
 
-        await speechSynth.speak(response, settingsRef.current.accent, settingsRef.current.speed)
+        setRevealedChars(0)
+        const startTime = Date.now()
+        startRevealInterval(response, startTime, settingsRef.current.speed)
+        await speechSynth.speak(response, settingsRef.current.accent, settingsRef.current.speed).catch(() => {})
+        stopRevealInterval()
+        setRevealedChars(response.length)
       } catch (err) {
         const fallback = "Sorry, I'm having trouble connecting. Could you say that again?"
         addMessage('ai', fallback)
+        setRevealedChars(0)
+        const fbStart = Date.now()
+        startRevealInterval(fallback, fbStart, settingsRef.current.speed)
         await speechSynth.speak(fallback, settingsRef.current.accent, settingsRef.current.speed).catch(() => {})
+        stopRevealInterval()
+        setRevealedChars(fallback.length)
       }
 
       isProcessingRef.current = false
@@ -127,15 +165,44 @@ function App() {
     handleSpeechResult(trimmed)
   }, [textInput, handleSpeechResult])
 
+  const handlePause = useCallback(
+    async (partialText: string) => {
+      if (callStatusRef.current !== 'connected' || isProcessingRef.current) return
+
+      const { apiKey, apiUrl, apiModel, accent, speed } = settingsRef.current
+      const history = messagesRef.current
+
+      setSpeakingState('encouraging')
+
+      try {
+        const encouragement = await generateEncouragement(partialText, history, apiKey, apiUrl, apiModel)
+        addMessage('ai', encouragement)
+        setRevealedChars(0)
+        const encStart = Date.now()
+        startRevealInterval(encouragement, encStart, speed)
+        await speechSynth.speak(encouragement, accent, speed).catch(() => {})
+        stopRevealInterval()
+        setRevealedChars(encouragement.length)
+      } catch {
+        // silently fail, encouragement is optional
+      }
+
+      if (callStatusRef.current === 'connected') {
+        setSpeakingState('listening')
+      }
+    },
+    [addMessage, speechSynth]
+  )
+
   const {
     isSupported: recognitionSupported,
     startListening: startRecognition,
     stopListening: stopRecognition,
     error: recognitionError,
-  } = useSpeechRecognition(
-    handleSpeechResult,
-    () => setSpeakingState('user-speaking'),
-    () => {
+  } = useSpeechRecognition({
+    onResult: handleSpeechResult,
+    onSpeechStart: () => setSpeakingState('user-speaking'),
+    onSpeechEnd: () => {
       if (!isProcessingRef.current) {
         setSpeakingState('listening')
         setTimeout(() => {
@@ -144,14 +211,17 @@ function App() {
           }
         }, 300)
       }
-    }
-  )
+    },
+    onPause: handlePause,
+    listeningMode: settings.listeningModeEnabled,
+  })
 
   startRecognitionRef.current = startRecognition
 
   const handleCall = useCallback(() => {
     setCallStatus('dialing')
     setMessages([])
+    setRevealedChars(0)
     messageIdCounter = 0
     isProcessingRef.current = false
 
@@ -166,7 +236,7 @@ function App() {
       audioViz.start()
       setSpeakingState('ai-speaking')
 
-      const { lastScene, difficulty, apiKey, apiUrl, apiModel, accent, speed } = settingsRef.current
+      const { lastScene, difficulty, correctionEnabled, apiKey, apiUrl, apiModel, accent, speed } = settingsRef.current
 
       let greeting: string
       let usedAI = false
@@ -178,6 +248,7 @@ function App() {
             lastScene,
             difficulty,
             [],
+            correctionEnabled,
             apiKey,
             apiUrl,
             apiModel
@@ -194,12 +265,19 @@ function App() {
       setUsingAI(usedAI)
       addMessage('ai', greeting)
 
+      setRevealedChars(0)
+      const greetStart = Date.now()
+      startRevealInterval(greeting, greetStart, speed)
       speechSynth.speak(greeting, accent, speed)
         .then(() => {
+          stopRevealInterval()
+          setRevealedChars(greeting.length)
           setSpeakingState('listening')
           startRecognition()
         })
         .catch(() => {
+          stopRevealInterval()
+          setRevealedChars(greeting.length)
           setSpeakingState('listening')
           startRecognition()
         })
@@ -212,6 +290,7 @@ function App() {
     stopRecognition()
     audioViz.stop()
     speechSynth.stop()
+    stopRevealInterval()
     timer.stop()
     setCallStatus('ended')
     setSpeakingState('idle')
@@ -236,7 +315,7 @@ function App() {
         // storage unavailable
       }
     }
-  }, [stopRecognition, speechSynth, timer, audioViz])
+  }, [stopRecognition, speechSynth, timer, audioViz, stopRevealInterval])
 
   const handleToggleMute = useCallback(() => {
     setIsMuted((prev) => {
@@ -282,6 +361,10 @@ function App() {
     setSettings((prev) => ({ ...prev, correctionEnabled: !prev.correctionEnabled }))
   }, [setSettings])
 
+  const handleListeningModeToggle = useCallback(() => {
+    setSettings((prev) => ({ ...prev, listeningModeEnabled: !prev.listeningModeEnabled }))
+  }, [setSettings])
+
   const handleApiKeyChange = useCallback(
     (apiKey: string) => {
       setSettings((prev) => ({ ...prev, apiKey }))
@@ -307,6 +390,7 @@ function App() {
             messages={messages}
             levels={audioViz.levels}
             decibels={audioViz.decibels}
+            revealedChars={revealedChars}
             onHangup={handleHangup}
             onCall={handleCall}
           />
@@ -392,10 +476,12 @@ function App() {
         accent={settings.accent}
         difficulty={settings.difficulty}
         correctionEnabled={settings.correctionEnabled}
+        listeningModeEnabled={settings.listeningModeEnabled}
         apiKey={settings.apiKey}
         onAccentChange={handleAccentChange}
         onDifficultyChange={handleDifficultyChange}
         onCorrectionToggle={handleCorrectionToggle}
+        onListeningModeToggle={handleListeningModeToggle}
         onApiKeyChange={handleApiKeyChange}
         onClose={() => setSettingsOpen(false)}
       />

@@ -7,6 +7,10 @@ const ACCENT_VOICES: Record<Accent, { lang: string; namePattern: string }> = {
   australian: { lang: 'en-AU', namePattern: 'en-AU|en_AU|australian|karen|lee' },
 }
 
+interface UseSpeechSynthesisOptions {
+  onWord?: (charIndex: number) => void
+}
+
 interface UseSpeechSynthesisReturn {
   speak: (text: string, accent: Accent, speed: number) => Promise<void>
   stop: () => void
@@ -14,10 +18,12 @@ interface UseSpeechSynthesisReturn {
   isSupported: boolean
 }
 
-export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
+export function useSpeechSynthesis(options?: UseSpeechSynthesisOptions): UseSpeechSynthesisReturn {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
   const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window
+  const onWordRef = useRef(options?.onWord)
+  onWordRef.current = options?.onWord
 
   const findVoice = useCallback((accent: Accent): SpeechSynthesisVoice | null => {
     const voices = window.speechSynthesis.getVoices()
@@ -64,17 +70,35 @@ export function useSpeechSynthesis(): UseSpeechSynthesisReturn {
       utterance.pitch = 1.0
       utterance.volume = 1.0
 
-      utterance.onstart = () => setIsSpeaking(true)
+      let charPos = 0
+
+      utterance.onstart = () => {
+        setIsSpeaking(true)
+        charPos = 0
+      }
+
+      utterance.onboundary = (event) => {
+        if (event.name === 'word' && onWordRef.current) {
+          charPos = event.charIndex
+          onWordRef.current(charPos)
+        }
+      }
 
       utterance.onend = () => {
         setIsSpeaking(false)
         utteranceRef.current = null
+        if (onWordRef.current) {
+          onWordRef.current(text.length)
+        }
         resolve()
       }
 
       utterance.onerror = () => {
         setIsSpeaking(false)
         utteranceRef.current = null
+        if (onWordRef.current) {
+          onWordRef.current(text.length)
+        }
         resolve()
       }
 

@@ -48,6 +48,14 @@ declare global {
   }
 }
 
+interface UseSpeechRecognitionOptions {
+  onResult: (text: string) => void
+  onSpeechStart?: () => void
+  onSpeechEnd?: () => void
+  onPause?: (text: string) => void
+  listeningMode?: boolean
+}
+
 interface UseSpeechRecognitionReturn {
   isListening: boolean
   isSupported: boolean
@@ -58,11 +66,17 @@ interface UseSpeechRecognitionReturn {
   error: string | null
 }
 
-export function useSpeechRecognition(
-  onResult: (text: string) => void,
-  onSpeechStart?: () => void,
-  onSpeechEnd?: () => void
-): UseSpeechRecognitionReturn {
+const ENCOURAGE_PAUSE_MS = 1500
+const SUBMIT_PAUSE_MS = 3000
+const NORMAL_SUBMIT_MS = 2000
+
+export function useSpeechRecognition({
+  onResult,
+  onSpeechStart,
+  onSpeechEnd,
+  onPause,
+  listeningMode = false,
+}: UseSpeechRecognitionOptions): UseSpeechRecognitionReturn {
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState('')
@@ -72,23 +86,33 @@ export function useSpeechRecognition(
   const transcriptRef = useRef('')
   const finalTextRef = useRef('')
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const encourageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onResultRef = useRef(onResult)
   const onSpeechStartRef = useRef(onSpeechStart)
   const onSpeechEndRef = useRef(onSpeechEnd)
+  const onPauseRef = useRef(onPause)
+  const listeningModeRef = useRef(listeningMode)
+  const hasEncouragedRef = useRef(false)
 
   onResultRef.current = onResult
   onSpeechStartRef.current = onSpeechStart
   onSpeechEndRef.current = onSpeechEnd
+  onPauseRef.current = onPause
+  listeningModeRef.current = listeningMode
 
-  const clearSilenceTimer = useCallback(() => {
+  const clearTimers = useCallback(() => {
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current)
       silenceTimerRef.current = null
     }
+    if (encourageTimerRef.current) {
+      clearTimeout(encourageTimerRef.current)
+      encourageTimerRef.current = null
+    }
   }, [])
 
   const submitAndStop = useCallback(() => {
-    clearSilenceTimer()
+    clearTimers()
     if (recognitionRef.current) {
       recognitionRef.current.abort()
       recognitionRef.current = null
@@ -101,8 +125,17 @@ export function useSpeechRecognition(
     transcriptRef.current = ''
     finalTextRef.current = ''
     setTranscript('')
+    hasEncouragedRef.current = false
     onSpeechEndRef.current?.()
-  }, [clearSilenceTimer])
+  }, [clearTimers])
+
+  const triggerEncouragement = useCallback(() => {
+    const text = finalTextRef.current.trim() || transcriptRef.current.trim()
+    if (text && onPauseRef.current && !hasEncouragedRef.current) {
+      hasEncouragedRef.current = true
+      onPauseRef.current(text)
+    }
+  }, [])
 
   const startListening = useCallback(() => {
     if (!isSupported) {
@@ -110,7 +143,7 @@ export function useSpeechRecognition(
       return
     }
 
-    clearSilenceTimer()
+    clearTimers()
 
     if (recognitionRef.current) {
       recognitionRef.current.abort()
@@ -130,11 +163,12 @@ export function useSpeechRecognition(
       transcriptRef.current = ''
       finalTextRef.current = ''
       setTranscript('')
+      hasEncouragedRef.current = false
       onSpeechStartRef.current?.()
     }
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      clearSilenceTimer()
+      clearTimers()
 
       let interimText = ''
 
@@ -151,9 +185,19 @@ export function useSpeechRecognition(
       transcriptRef.current = displayText
       setTranscript(displayText)
 
-      silenceTimerRef.current = setTimeout(() => {
-        submitAndStop()
-      }, 2000)
+      if (listeningModeRef.current) {
+        encourageTimerRef.current = setTimeout(() => {
+          triggerEncouragement()
+        }, ENCOURAGE_PAUSE_MS)
+
+        silenceTimerRef.current = setTimeout(() => {
+          submitAndStop()
+        }, SUBMIT_PAUSE_MS)
+      } else {
+        silenceTimerRef.current = setTimeout(() => {
+          submitAndStop()
+        }, NORMAL_SUBMIT_MS)
+      }
     }
 
     recognition.onerror = (event: Event) => {
@@ -168,7 +212,7 @@ export function useSpeechRecognition(
     }
 
     recognition.onend = () => {
-      clearSilenceTimer()
+      clearTimers()
       setIsListening(false)
 
       const text = finalTextRef.current.trim() || transcriptRef.current.trim()
@@ -178,21 +222,24 @@ export function useSpeechRecognition(
       transcriptRef.current = ''
       finalTextRef.current = ''
       setTranscript('')
+      hasEncouragedRef.current = false
 
       onSpeechEndRef.current?.()
     }
 
     recognitionRef.current = recognition
     recognition.start()
-  }, [isSupported, clearSilenceTimer, submitAndStop])
+  }, [isSupported, clearTimers, submitAndStop, triggerEncouragement])
 
   const stopListening = useCallback(() => {
+    clearTimers()
     if (recognitionRef.current) {
       recognitionRef.current.abort()
       recognitionRef.current = null
     }
     setIsListening(false)
-  }, [])
+    hasEncouragedRef.current = false
+  }, [clearTimers])
 
   return {
     isListening,

@@ -1,5 +1,5 @@
 import type { Scene, Difficulty, Message } from '../types'
-import { getAIResponse } from '../services/openai'
+import { getAIResponse, getEncouragement } from '../services/openai'
 
 interface GreetingSet {
   greetings: string[]
@@ -226,13 +226,14 @@ export async function generateAIResponse(
   scene: Scene,
   difficulty: Difficulty,
   history: Message[],
+  correctionEnabled: boolean,
   apiKey?: string,
   apiUrl?: string,
   apiModel?: string
 ): Promise<{ text: string; usedAI: boolean }> {
   if (apiKey) {
     try {
-      const text = await getAIResponse(userText, history, scene, difficulty, apiKey, apiUrl || 'https://api.deepseek.com/v1', apiModel || 'deepseek-chat')
+      const text = await getAIResponse(userText, history, scene, difficulty, correctionEnabled, apiKey, apiUrl || 'https://api.deepseek.com/v1', apiModel || 'deepseek-chat')
       return { text, usedAI: true }
     } catch (err) {
       console.error('AI API 调用失败，降级到本地回复:', err)
@@ -240,4 +241,37 @@ export async function generateAIResponse(
   }
 
   return { text: generateLocalResponse(userText, scene, history), usedAI: false }
+}
+
+const localEncouragements = [
+  "I see",
+  "Go on",
+  "That's interesting",
+  "Really?",
+  "And then?",
+  "Tell me more",
+  "I understand",
+  "That's great",
+  "Oh?",
+  "Mm-hmm",
+  "Uh huh",
+]
+
+export async function generateEncouragement(
+  partialText: string,
+  history: Message[],
+  apiKey?: string,
+  apiUrl?: string,
+  apiModel?: string
+): Promise<string> {
+  if (apiKey) {
+    try {
+      const text = await getEncouragement(partialText, history, apiKey, apiUrl || 'https://api.deepseek.com/v1', apiModel || 'deepseek-chat')
+      return text
+    } catch (err) {
+      console.error('鼓励回应 API 调用失败，使用本地:', err)
+    }
+  }
+
+  return localEncouragements[Math.floor(Math.random() * localEncouragements.length)]
 }

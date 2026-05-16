@@ -1017,6 +1017,56 @@ body {
   }
 }
 
+/* Typing cursor animation */
+.typing-cursor {
+  display: inline-block;
+  color: var(--primary);
+  font-weight: 700;
+  animation: blink 0.8s infinite;
+  margin-left: 1px;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Listening mode button */
+.listening-mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+}
+
+.listening-mode-btn.active {
+  background: rgba(22, 93, 255, 0.12);
+  color: var(--primary);
+}
+
+.control-label {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Encouraging state indicator */
+.status-indicator.encouraging {
+  background: rgba(255, 193, 7, 0.15);
+  color: #F59E0B;
+}
+
+.status-indicator.encouraging .status-dot {
+  background: #F59E0B;
+  animation: pulse-dot 1s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.6; }
+}
+
 .ai-mode-hint {
   margin: 0 20px 8px;
   padding: 8px 12px;
