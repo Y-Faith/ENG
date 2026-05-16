@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 permissions:
@@ -26,22 +26,19 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          working-directory: my-react-app
 
       - name: Install dependencies
         run: npm ci
-        working-directory: my-react-app
 
       - name: Build
         run: npm run build
-        working-directory: my-react-app
         env:
           VITE_APP_TITLE: AI Eng Tutor
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: my-react-app/dist
+          path: dist
 
   deploy:
     environment:
