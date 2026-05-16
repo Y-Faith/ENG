@@ -120,14 +120,14 @@ export function useAudioVisualizer(barCount: number = 40): UseAudioVisualizerRet
       if (!runningRef.current) return
 
       const analyser = analyserRef.current
-      const timeData = timeDataRef.current
+      const timeData = timeDataRef.current as unknown as Uint8Array
       const prev = prevLevelsRef.current
       const newLevels: number[] = []
 
       if (useRealMic && analyser && timeData) {
-        analyser.getByteTimeDomainData(timeData)
+        analyser.getByteTimeDomainData(timeData as unknown as Uint8Array<ArrayBuffer>)
 
-        const rms = calculateRMS(timeData)
+        const rms = calculateRMS(timeData as unknown as Uint8Array)
         const db = rmsToDecibels(rms)
         const volumeNorm = Math.min(1, Math.max(0, (db + 48) / 42))
 
