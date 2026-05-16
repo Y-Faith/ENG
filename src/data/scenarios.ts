@@ -1,0 +1,243 @@
+import type { Scene, Difficulty, Message } from '../types'
+import { getAIResponse } from '../services/openai'
+
+interface GreetingSet {
+  greetings: string[]
+  fallbacks: string[]
+}
+
+const sceneGreetings: Record<Scene, GreetingSet> = {
+  daily: {
+    greetings: [
+      "Hi there! How's your day going?",
+      "Hello! Nice to talk with you today. What would you like to chat about?",
+      "Hey! I'm Emma. How are you feeling today?",
+      "Good to hear from you! What's new with you?",
+    ],
+    fallbacks: [
+      "That's interesting! Tell me more about that.",
+      "I see. And how does that make you feel?",
+      "Oh really? What happened next?",
+      "That sounds great! What else is on your mind?",
+      "I understand. By the way, what do you like to do in your free time?",
+      "Nice! Do you have any hobbies you enjoy?",
+      "Speaking of which, have you watched any good movies lately?",
+      "That reminds me — what kind of music do you like?",
+    ],
+  },
+  business: {
+    greetings: [
+      "Good morning! Welcome to our business English practice. Shall we start with introductions?",
+      "Hello! Let's practice some business conversation today. What industry do you work in?",
+      "Hi there! Ready for our business meeting simulation? What's on the agenda today?",
+    ],
+    fallbacks: [
+      "That's a good point. Could you elaborate on your business strategy?",
+      "I see. How does your team handle project deadlines?",
+      "Interesting approach. What metrics do you use to measure success?",
+      "Let's discuss the quarterly results. How do you think we performed?",
+      "What's your opinion on remote work versus office work?",
+      "How do you typically prepare for important presentations?",
+      "Could you walk me through your decision-making process?",
+      "What do you think is the key to successful negotiation?",
+    ],
+  },
+  travel: {
+    greetings: [
+      "Welcome! Where would you like to travel today? I can help you practice airport, hotel, or restaurant conversations.",
+      "Hello traveler! Ready to explore? Where are we going on our virtual trip?",
+      "Hi! Let's practice some travel English. Are you checking into a hotel or ordering at a restaurant?",
+    ],
+    fallbacks: [
+      "Great choice! Now, let's imagine you're at the check-in counter. What would you say?",
+      "That sounds like a wonderful destination. Have you been there before?",
+      "Let's practice ordering food. What would you like to eat?",
+      "Now imagine you need to ask for directions. What would you say?",
+      "At the hotel now — how would you request extra towels?",
+      "You're at the airport and your flight is delayed. What do you ask the staff?",
+      "Let's practice booking a tour. What kind of activities interest you?",
+      "How would you describe your dietary restrictions at a restaurant?",
+    ],
+  },
+}
+
+const corrections: Record<Difficulty, { patterns: [RegExp, string][] }> = {
+  beginner: {
+    patterns: [
+      [/me go (.*)/i, 'Try: "I go $1" or "I went $1"'],
+      [/he go (.*)/i, 'Try: "He goes $1" or "He went $1"'],
+      [/she go (.*)/i, 'Try: "She goes $1" or "She went $1"'],
+      [/yesterday (.*) go/i, 'Tip: For past events, use "went" instead of "go"'],
+      [/no have/i, 'Try: "don\'t have" or "doesn\'t have"'],
+      [/more good/i, 'Try: "better" instead of "more good"'],
+      [/more bad/i, 'Try: "worse" instead of "more bad"'],
+    ],
+  },
+  intermediate: {
+    patterns: [
+      [/if I was/i, 'Tip: In formal English, use "If I were" for hypothetical situations'],
+      [/I have went/i, 'Try: "I have gone" (present perfect)'],
+      [/less (.*) than me/i, 'Tip: Use "fewer" for countable nouns, "less" for uncountable'],
+      [/between you and I/i, 'Try: "between you and me" (object pronoun)'],
+    ],
+  },
+  advanced: {
+    patterns: [
+      [/whom (.*) I think/i, 'Tip: Consider if "who" would be more natural here'],
+      [/irregardless/i, 'Tip: "Regardless" is the standard form'],
+    ],
+  },
+}
+
+export function getGreeting(scene: Scene): string {
+  const sceneData = sceneGreetings[scene] ?? sceneGreetings.daily
+  const greetings = sceneData.greetings
+  return greetings[Math.floor(Math.random() * greetings.length)]
+}
+
+function getFallbackResponse(scene: Scene): string {
+  const sceneData = sceneGreetings[scene] ?? sceneGreetings.daily
+  const fallbacks = sceneData.fallbacks
+  return fallbacks[Math.floor(Math.random() * fallbacks.length)]
+}
+
+export function getCorrection(text: string, difficulty: Difficulty): string | null {
+  const patterns = corrections[difficulty].patterns
+  for (const [regex, message] of patterns) {
+    if (regex.test(text)) {
+      return message
+    }
+  }
+  return null
+}
+
+function generateLocalResponse(userText: string, scene: Scene, history: Message[]): string {
+  const lower = userText.toLowerCase().trim()
+
+  if (lower.length < 5) {
+    return getFallbackResponse(scene)
+  }
+
+  const lastAiMsg = [...history].reverse().find((m) => m.role === 'ai')
+  const contextAware = lastAiMsg ? `Following up on our conversation: ` : ''
+
+  if (scene === 'daily') {
+    if (lower.includes('weather')) {
+      const responses = [
+        "The weather has been lovely lately! Do you prefer sunny or rainy days?",
+        "I know, right? I love it when the weather is like this. What's your favorite season?",
+        "Speaking of weather, do you enjoy outdoor activities when it's nice out?",
+      ]
+      return contextAware + responses[Math.floor(Math.random() * responses.length)]
+    }
+    if (lower.includes('food') || lower.includes('eat')) {
+      const responses = [
+        "Oh, I love talking about food! What's your favorite cuisine?",
+        "That sounds delicious! Do you enjoy cooking, or do you prefer eating out?",
+        "Yum! Have you tried any new restaurants recently?",
+      ]
+      return contextAware + responses[Math.floor(Math.random() * responses.length)]
+    }
+    if (lower.includes('work') || lower.includes('job')) {
+      const responses = [
+        "Work can be challenging sometimes. What do you enjoy most about your job?",
+        "I see. How do you usually balance work and personal life?",
+        "That's interesting! What career goals are you working towards?",
+      ]
+      return contextAware + responses[Math.floor(Math.random() * responses.length)]
+    }
+    if (lower.includes('hobby') || lower.includes('hobbies')) {
+      const responses = [
+        "Hobbies are so important for relaxation! How did you get started with yours?",
+        "That's a wonderful hobby! How often do you get to do it?",
+        "Nice! Have you ever thought about turning your hobby into something more?",
+      ]
+      return contextAware + responses[Math.floor(Math.random() * responses.length)]
+    }
+  }
+
+  if (scene === 'business') {
+    if (lower.includes('meeting')) {
+      const responses = [
+        "Let's talk about meeting etiquette. How do you usually prepare an agenda?",
+        "Good point about meetings. How do you ensure they stay productive?",
+        "Meetings can be tricky. What's your strategy for handling disagreements?",
+      ]
+      return contextAware + responses[Math.floor(Math.random() * responses.length)]
+    }
+    if (lower.includes('deadline') || lower.includes('project')) {
+      const responses = [
+        "Project management is crucial. What tools do you use to track progress?",
+        "Deadlines can be stressful. How do you prioritize when everything is urgent?",
+        "That's a common challenge. How does your team communicate during crunch time?",
+      ]
+      return contextAware + responses[Math.floor(Math.random() * responses.length)]
+    }
+    if (lower.includes('email')) {
+      const responses = [
+        "Email communication is key in business. Do you prefer formal or casual tones?",
+        "Good topic! How do you handle difficult conversations over email?",
+        "Email etiquette varies by culture. Have you noticed any differences?",
+      ]
+      return contextAware + responses[Math.floor(Math.random() * responses.length)]
+    }
+  }
+
+  if (scene === 'travel') {
+    if (lower.includes('hotel') || lower.includes('check')) {
+      const responses = [
+        "Great! Let's practice: 'I have a reservation under the name...' Can you complete that?",
+        "At the hotel front desk now. How would you ask about the WiFi password?",
+        "Good! Now, how would you request a late checkout?",
+      ]
+      return contextAware + responses[Math.floor(Math.random() * responses.length)]
+    }
+    if (lower.includes('restaurant') || lower.includes('order') || lower.includes('food')) {
+      const responses = [
+        "Perfect! Let's practice ordering: 'I'd like to order the...' What would you like?",
+        "At a restaurant now. How would you ask for the bill?",
+        "Good! How would you tell the waiter about a food allergy?",
+      ]
+      return contextAware + responses[Math.floor(Math.random() * responses.length)]
+    }
+    if (lower.includes('airport') || lower.includes('flight')) {
+      const responses = [
+        "Airport practice! How would you ask: 'Which gate is my flight departing from?'",
+        "Good! Now imagine your luggage is lost. What would you say at the counter?",
+        "Let's practice: 'Excuse me, where is the baggage claim area?'",
+      ]
+      return contextAware + responses[Math.floor(Math.random() * responses.length)]
+    }
+    if (lower.includes('direction') || lower.includes('where')) {
+      const responses = [
+        "Asking for directions is essential! Try: 'Excuse me, could you tell me how to get to...?'",
+        "Good practice! How would you ask: 'Is it within walking distance?'",
+        "Nice! Now try: 'Which bus should I take to get to the city center?'",
+      ]
+      return contextAware + responses[Math.floor(Math.random() * responses.length)]
+    }
+  }
+
+  return getFallbackResponse(scene)
+}
+
+export async function generateAIResponse(
+  userText: string,
+  scene: Scene,
+  difficulty: Difficulty,
+  history: Message[],
+  apiKey?: string,
+  apiUrl?: string,
+  apiModel?: string
+): Promise<{ text: string; usedAI: boolean }> {
+  if (apiKey) {
+    try {
+      const text = await getAIResponse(userText, history, scene, difficulty, apiKey, apiUrl || 'https://api.deepseek.com/v1', apiModel || 'deepseek-chat')
+      return { text, usedAI: true }
+    } catch (err) {
+      console.error('AI API 调用失败，降级到本地回复:', err)
+    }
+  }
+
+  return { text: generateLocalResponse(userText, scene, history), usedAI: false }
+}
