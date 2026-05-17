@@ -17,7 +17,6 @@ app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
-  exposeHeaders: ['Content-Length'],
   maxAge: 86400,
 }))
 
@@ -79,7 +78,6 @@ async function incrementDailyUsage(db: D1Database, userId: string): Promise<void
 }
 
 app.onError((err, c) => {
-  console.error('Worker error:', err.message)
   return c.json({ error: err.message || '服务器内部错误' }, 500)
 })
 
@@ -326,4 +324,4 @@ app.get('/api/usage', async (c) => {
   return c.json({ dailyUsage: usage, dailyLimit: limit })
 })
 
-export default app
+export const onRequest = app.fetch

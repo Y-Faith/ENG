@@ -1,6 +1,4 @@
-const WORKER_URL = import.meta.env.PROD
-  ? 'https://seu-eng-worker.y9267347664.workers.dev'
-  : '/api'
+const WORKER_URL = import.meta.env.PROD ? '' : '/api'
 
 function getToken(): string | null {
   return localStorage.getItem('auth_token')
