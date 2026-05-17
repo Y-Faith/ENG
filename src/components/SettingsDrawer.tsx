@@ -5,8 +5,8 @@ import { ACCENT_LABELS, DIFFICULTY_LABELS, API_PLATFORM_LABELS, API_PLATFORM_DEF
 interface UserInfo {
   displayName: string
   email: string
-  dailyUsage: number
-  dailyLimit: number
+  weekUsage: number
+  weekLimit: number
 }
 
 interface SettingsDrawerProps {
@@ -457,8 +457,8 @@ export function SettingsDrawer({
                   <span className="user-info-value">{user.email}</span>
                 </div>
                 <div className="user-info-line">
-                  <span className="user-info-label">今日用量</span>
-                  <span className="user-info-value">{user.dailyUsage} / {user.dailyLimit} 次</span>
+                  <span className="user-info-label">本周用量</span>
+                  <span className="user-info-value">{user.weekUsage} / {user.weekLimit} 次</span>
                 </div>
                 <button className="settings-logout-btn" onClick={onLogout}>
                   退出登录

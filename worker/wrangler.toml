@@ -9,5 +9,5 @@ database_id = "35eea6af-4baf-4619-b04f-2f381874f232"
 
 [vars]
 AI_API_URL = "https://api.chatanywhere.tech/v1"
-AI_MODEL = "deepseek-chat"
-DAILY_LIMIT = "100"
+AI_MODEL = "qwen3.5-plus"
+WEEKLY_LIMIT = "20"
