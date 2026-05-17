@@ -13,7 +13,13 @@ interface Env {
 
 const app = new Hono<{ Bindings: Env }>()
 
-app.use('*', cors())
+app.use('*', cors({
+  origin: '*',
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  exposeHeaders: ['Content-Length'],
+  maxAge: 86400,
+}))
 
 const JWT_SECRET = 'seu-eng-jwt-secret-2025'
 const JWT_ALG: SignatureAlgorithm = 'HS256'
