@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 
-export type VizState = 'idle' | 'listening' | 'user-speaking' | 'ai-speaking'
+export type VizState = 'idle' | 'listening' | 'user-speaking' | 'ai-speaking' | 'encouraging'
 
 interface UseAudioVisualizerReturn {
   levels: number[]
@@ -162,6 +162,9 @@ export function useAudioVisualizer(barCount: number = 40): UseAudioVisualizerRet
             break
           case 'ai-speaking':
             baseAmplitude = 0.4
+            break
+          case 'encouraging':
+            baseAmplitude = 0.3
             break
           default:
             baseAmplitude = 0

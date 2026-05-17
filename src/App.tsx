@@ -32,10 +32,6 @@ function App() {
   const [usingAI, setUsingAI] = useState(false)
   const [revealedChars, setRevealedChars] = useState(0)
 
-  const handleWordByWordToggle = useCallback(() => {
-    setSettings((prev) => ({ ...prev, wordByWordEnabled: !prev.wordByWordEnabled }))
-  }, [setSettings])
-
   const isProcessingRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
   const settingsRef = useRef(settings)
