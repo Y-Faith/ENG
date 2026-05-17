@@ -1,5 +1,5 @@
 import type { Scene, Difficulty, Message } from '../types'
-import { getAIResponse, getEncouragement } from '../services/openai'
+import { fetchChatCompletion, getAIResponse, getEncouragement } from '../services/openai'
 
 interface GreetingSet {
   greetings: string[]
@@ -274,4 +274,122 @@ export async function generateEncouragement(
   }
 
   return localEncouragements[Math.floor(Math.random() * localEncouragements.length)]
+}
+
+const contextualResponses = {
+  venting: [
+    "That sounds really tough. Take your time.",
+    "I'm sorry to hear that. It must be frustrating.",
+    "That sounds difficult. You're handling it well.",
+    "I can see why that would be stressful.",
+    "That is indeed challenging. Keep going.",
+  ],
+  sharing: [
+    "That's wonderful news! How exciting!",
+    "That sounds amazing! Tell me more!",
+    "I'm so happy for you! That's great!",
+    "How fantastic! You must be thrilled.",
+    "That's really cool! What happened next?",
+  ],
+  excited: [
+    "I can feel your excitement! That's awesome!",
+    "Your energy is contagious! Keep going!",
+    "You sound really passionate about this!",
+    "That's so interesting! Tell me everything!",
+    "I love how excited you are!",
+  ],
+  neutral: [
+    "I see. Go on.",
+    "Interesting. Tell me more.",
+    "Uh huh. What else?",
+    "I understand. Continue.",
+    "Mm, I hear you. What do you think about that?",
+  ],
+}
+
+function detectEmotionalContext(text: string): 'venting' | 'sharing' | 'excited' | 'neutral' {
+  const lower = text.toLowerCase()
+
+  const ventingIndicators = ['sad', 'upset', 'angry', 'frustrated', 'annoyed', 'disappointed', 'terrible', 'awful', 'hate', 'stupid', 'worst', 'stress', 'anxious', 'worried', 'lonely', 'depressed', 'cry', 'crying', 'fail', 'failed', 'mistake', 'problem', 'trouble', 'difficult', 'hard time']
+  const sharingIndicators = ['got', 'achieved', 'accomplished', 'succeeded', 'won', 'promoted', 'excited', 'happy', 'glad', 'grateful', 'thankful', 'wonderful', 'amazing', 'fantastic', 'great news', 'celebrate', 'good thing', 'lucky', 'blessed', 'love', 'loved', 'enjoy', 'fun', 'happy']
+  const excitedIndicators = ['!', 'wow', 'omg', 'oh my god', 'can\'t wait', 'so excited', 'can\'t believe', 'incredible', 'unbelievable', 'insane', ' nuts', 'bonkers']
+
+  let ventingScore = 0
+  let sharingScore = 0
+  let excitedScore = 0
+
+  for (const indicator of ventingIndicators) {
+    if (lower.includes(indicator)) ventingScore++
+  }
+  for (const indicator of sharingIndicators) {
+    if (lower.includes(indicator)) sharingScore++
+  }
+  for (const indicator of excitedIndicators) {
+    if (lower.includes(indicator)) excitedScore++
+  }
+
+  if (ventingScore > sharingScore && ventingScore > excitedScore) {
+    return 'venting'
+  }
+  if (sharingScore > ventingScore && sharingScore > excitedScore) {
+    return 'sharing'
+  }
+  if (excitedScore > ventingScore && excitedScore > sharingScore) {
+    return 'excited'
+  }
+  return 'neutral'
+}
+
+export async function generateContextualResponse(
+  partialText: string,
+  history: Message[],
+  _scene: Scene,
+  apiKey?: string,
+  apiUrl?: string,
+  apiModel?: string
+): Promise<string> {
+  const emotionalContext = detectEmotionalContext(partialText)
+  const responses = contextualResponses[emotionalContext]
+
+  if (apiKey) {
+    try {
+      const systemPrompt = `You are Emma, a warm and empathetic English tutor. The student is sharing something in listening mode. Your role is to be a supportive listener.
+
+Based on what the student just said, analyze the emotional context:
+- If they seem to be venting or expressing frustration: respond with empathy and understanding
+- If they are sharing good news or something positive: respond with genuine happiness and interest
+- If they seem excited: match their energy with enthusiasm
+- If they are just sharing neutrally: acknowledge and encourage them to continue
+
+Keep your response VERY brief (1-2 sentences max). Be warm, human, and natural. Do NOT give long responses. Do NOT correct grammar. Just listen and respond with appropriate emotion.`
+
+      const messages: Array<{ role: string; content: string }> = [
+        { role: 'system', content: systemPrompt },
+      ]
+
+      const recentHistory = history.slice(-4)
+      for (const msg of recentHistory) {
+        if (msg.role !== ('system' as any)) {
+          messages.push({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: msg.content,
+          })
+        }
+      }
+
+      messages.push({ role: 'user', content: partialText })
+
+      const text = await fetchChatCompletion(apiKey, apiUrl!, {
+        model: apiModel || 'deepseek-chat',
+        messages,
+        temperature: 0.8,
+        max_tokens: 50,
+      })
+      return text
+    } catch (err) {
+      console.error('Contextual response API failed, using local:', err)
+    }
+  }
+
+  return responses[Math.floor(Math.random() * responses.length)]
 }

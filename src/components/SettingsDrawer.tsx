@@ -1,6 +1,13 @@
 import { useState } from 'react'
-import type { Accent, Difficulty } from '../types'
-import { ACCENT_LABELS, DIFFICULTY_LABELS } from '../types'
+import type { Accent, Difficulty, APIConfig, ApiPlatform } from '../types'
+import { ACCENT_LABELS, DIFFICULTY_LABELS, API_PLATFORM_LABELS, API_PLATFORM_DEFAULTS } from '../types'
+
+interface UserInfo {
+  displayName: string
+  email: string
+  dailyUsage: number
+  dailyLimit: number
+}
 
 interface SettingsDrawerProps {
   isOpen: boolean
@@ -8,13 +15,19 @@ interface SettingsDrawerProps {
   difficulty: Difficulty
   correctionEnabled: boolean
   listeningModeEnabled: boolean
-  apiKey: string
+  apis: APIConfig[]
+  activeApiId: string | null
   onAccentChange: (accent: Accent) => void
   onDifficultyChange: (difficulty: Difficulty) => void
   onCorrectionToggle: () => void
   onListeningModeToggle: () => void
-  onApiKeyChange: (apiKey: string) => void
+  onAddApi: (api: Omit<APIConfig, 'id'>) => void
+  onUpdateApi: (id: string, api: Omit<APIConfig, 'id'>) => void
+  onRemoveApi: (id: string) => void
+  onSetActiveApi: (id: string | null) => void
   onClose: () => void
+  onLogout?: () => void
+  user?: UserInfo
 }
 
 export function SettingsDrawer({
@@ -23,33 +36,95 @@ export function SettingsDrawer({
   difficulty,
   correctionEnabled,
   listeningModeEnabled,
-  apiKey,
+  apis,
+  activeApiId,
   onAccentChange,
   onDifficultyChange,
   onCorrectionToggle,
   onListeningModeToggle,
-  onApiKeyChange,
+  onAddApi,
+  onUpdateApi,
+  onRemoveApi,
+  onSetActiveApi,
   onClose,
+  onLogout,
+  user,
 }: SettingsDrawerProps) {
-  const [keyInput, setKeyInput] = useState('')
-  const [isEditing, setIsEditing] = useState(!apiKey)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [apiName, setApiName] = useState('')
+  const [apiPlatform, setApiPlatform] = useState<ApiPlatform>('deepseek')
+  const [apiKey, setApiKey] = useState('')
+  const [apiUrl, setApiUrl] = useState('')
+  const [apiModel, setApiModel] = useState('')
 
-  const handleKeySubmit = () => {
-    const trimmed = keyInput.trim()
-    if (trimmed) {
-      onApiKeyChange(trimmed)
-      setKeyInput('')
-      setIsEditing(false)
-    }
+  const handlePlatformChange = (platform: ApiPlatform) => {
+    setApiPlatform(platform)
+    setApiUrl(API_PLATFORM_DEFAULTS[platform].url)
+    setApiModel(API_PLATFORM_DEFAULTS[platform].model)
   }
 
-  const handleDeleteKey = () => {
-    onApiKeyChange('')
-    setKeyInput('')
-    setIsEditing(true)
+  const handleAddApi = () => {
+    const trimmedKey = apiKey.trim()
+    const trimmedName = apiName.trim()
+    if (!trimmedKey) return
+
+    onAddApi({
+      name: trimmedName || API_PLATFORM_LABELS[apiPlatform],
+      platform: apiPlatform,
+      apiKey: trimmedKey,
+      apiUrl: apiUrl.trim() || API_PLATFORM_DEFAULTS[apiPlatform].url,
+      apiModel: apiModel.trim() || API_PLATFORM_DEFAULTS[apiPlatform].model,
+    })
+
+    setApiName('')
+    setApiKey('')
+    setApiPlatform('deepseek')
+    setApiUrl('')
+    setApiModel('')
+    setShowAddForm(false)
   }
 
-  const maskedKey = apiKey ? apiKey.slice(0, 4) + '••••••••' + apiKey.slice(-4) : ''
+  const startEditing = (api: APIConfig) => {
+    setShowAddForm(false)
+    setEditingId(api.id)
+    setApiName(api.name)
+    setApiPlatform(api.platform)
+    setApiUrl(api.apiUrl)
+    setApiModel(api.apiModel)
+    setApiKey('')
+  }
+
+  const handleUpdateApi = () => {
+    const trimmedName = apiName.trim()
+    if (!editingId) return
+
+    onUpdateApi(editingId, {
+      name: trimmedName || API_PLATFORM_LABELS[apiPlatform],
+      platform: apiPlatform,
+      apiKey: '',
+      apiUrl: apiUrl.trim() || API_PLATFORM_DEFAULTS[apiPlatform].url,
+      apiModel: apiModel.trim() || API_PLATFORM_DEFAULTS[apiPlatform].model,
+    })
+
+    setEditingId(null)
+    setApiName('')
+    setApiPlatform('deepseek')
+    setApiUrl('')
+    setApiModel('')
+    setApiKey('')
+  }
+
+  const cancelEditing = () => {
+    setEditingId(null)
+    setApiName('')
+    setApiPlatform('deepseek')
+    setApiUrl('')
+    setApiModel('')
+    setApiKey('')
+  }
+
+  const activeApi = apis.find((a) => a.id === activeApiId)
 
   return (
     <>
@@ -65,36 +140,251 @@ export function SettingsDrawer({
         </div>
 
         <div className="settings-body">
+          {/* API Management Section */}
           <div className="setting-group">
-            <label className="setting-label">DeepSeek API Key</label>
-            {apiKey && !isEditing ? (
-              <div className="api-key-display">
-                <span className="api-key-masked" onCopy={(e) => e.preventDefault()}>{maskedKey}</span>
-                <button className="api-key-delete" onClick={handleDeleteKey} title="删除 Key">
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                  </svg>
-                </button>
+            <label className="setting-label">AI 接口管理</label>
+
+            {apis.length > 0 && (
+              <div className="api-list">
+                {apis.map((api) => (
+                  <div
+                    key={api.id}
+                    className={`api-card ${api.id === activeApiId ? 'active' : ''} ${editingId === api.id ? 'editing' : ''}`}
+                  >
+                    {editingId === api.id ? (
+                      <div className="api-edit-form">
+                        <div className="api-form-row">
+                          <input
+                            type="text"
+                            className="api-form-input"
+                            placeholder="API 名称"
+                            value={apiName}
+                            onChange={(e) => setApiName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleUpdateApi()
+                            }}
+                          />
+                        </div>
+
+                        <div className="api-form-row">
+                          <label className="api-form-label">平台</label>
+                          <div className="platform-options">
+                            {(Object.keys(API_PLATFORM_LABELS) as ApiPlatform[]).map((p) => (
+                              <button
+                                key={p}
+                                className={`platform-option ${apiPlatform === p ? 'selected' : ''}`}
+                                onClick={() => handlePlatformChange(p)}
+                              >
+                                {API_PLATFORM_LABELS[p]}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="api-form-row">
+                          <label className="api-form-label">API URL</label>
+                          <input
+                            type="text"
+                            className="api-form-input"
+                            placeholder="https://api.example.com/v1"
+                            value={apiUrl}
+                            onChange={(e) => setApiUrl(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleUpdateApi()
+                            }}
+                          />
+                        </div>
+
+                        <div className="api-form-row">
+                          <label className="api-form-label">模型名称</label>
+                          <input
+                            type="text"
+                            className="api-form-input"
+                            placeholder="如: deepseek-chat / qwen-plus"
+                            value={apiModel}
+                            onChange={(e) => setApiModel(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleUpdateApi()
+                            }}
+                          />
+                        </div>
+
+                        <div className="api-form-row">
+                          <label className="api-form-label">密钥</label>
+                          <div className="api-key-locked">已设置，不可查看</div>
+                        </div>
+
+                        <div className="api-form-actions">
+                          <button className="api-cancel-btn" onClick={cancelEditing}>
+                            取消
+                          </button>
+                          <button className="api-save-btn" onClick={handleUpdateApi}>
+                            保存
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div
+                          className="api-card-info"
+                          onClick={() => onSetActiveApi(api.id === activeApiId ? null : api.id)}
+                        >
+                          <div className="api-card-name">{api.name}</div>
+                          <div className="api-card-detail">
+                            <span className="api-platform-badge">{API_PLATFORM_LABELS[api.platform]}</span>
+                            <span className="api-model-text">{api.apiModel}</span>
+                          </div>
+                        </div>
+                        <div className="api-card-actions">
+                          <button
+                            className="api-edit-btn"
+                            onClick={(e) => { e.stopPropagation(); startEditing(api) }}
+                            title="编辑 API"
+                          >
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                            </svg>
+                          </button>
+                          <button
+                            className="api-delete-btn"
+                            onClick={(e) => { e.stopPropagation(); onRemoveApi(api.id) }}
+                            title="删除 API"
+                          >
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
               </div>
-            ) : (
-              <input
-                type="password"
-                className="api-key-input"
-                placeholder="输入你的 DeepSeek API Key 后按回车..."
-                value={keyInput}
-                onChange={(e) => setKeyInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    handleKeySubmit()
-                  }
-                }}
-                autoFocus={isEditing}
-              />
             )}
-            <p className="setting-hint">
-              填入 API Key 后启用真实 AI 对话。在 <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer">platform.deepseek.com</a> 获取
-            </p>
+
+            {!showAddForm ? (
+              <button className="api-add-btn" onClick={() => setShowAddForm(true)}>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                </svg>
+                添加 API
+              </button>
+            ) : (
+              <div className="api-add-form">
+                <div className="api-form-row">
+                  <input
+                    type="text"
+                    className="api-form-input"
+                    placeholder="API 名称（可选，如：我的DeepSeek）"
+                    value={apiName}
+                    onChange={(e) => setApiName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddApi()
+                    }}
+                  />
+                </div>
+
+                <div className="api-form-row">
+                  <label className="api-form-label">平台</label>
+                  <div className="platform-options">
+                    {(Object.keys(API_PLATFORM_LABELS) as ApiPlatform[]).map((p) => (
+                      <button
+                        key={p}
+                        className={`platform-option ${apiPlatform === p ? 'selected' : ''}`}
+                        onClick={() => handlePlatformChange(p)}
+                      >
+                        {API_PLATFORM_LABELS[p]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="api-form-row">
+                  <label className="api-form-label">API URL</label>
+                  <input
+                    type="text"
+                    className="api-form-input"
+                    placeholder="https://api.example.com/v1"
+                    value={apiUrl}
+                    onChange={(e) => setApiUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddApi()
+                    }}
+                  />
+                  <p className="setting-hint">
+                    {apiPlatform === 'custom'
+                      ? '输入 API 基础 URL，将自动拼接 /chat/completions'
+                      : '可留空使用默认地址'}
+                  </p>
+                </div>
+
+                <div className="api-form-row">
+                  <label className="api-form-label">模型名称</label>
+                  <input
+                    type="text"
+                    className="api-form-input"
+                    placeholder="如: deepseek-chat / qwen-plus / glm-4-flash"
+                    value={apiModel}
+                    onChange={(e) => setApiModel(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddApi()
+                    }}
+                  />
+                </div>
+
+                <div className="api-form-row">
+                  <label className="api-form-label">API Key</label>
+                  <div className="api-key-input-row">
+                    <input
+                      type="password"
+                      className="api-form-input"
+                      placeholder="输入你的 API Key..."
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleAddApi()
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      className="api-key-add-btn"
+                      onClick={handleAddApi}
+                      disabled={!apiKey.trim()}
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                      </svg>
+                      添加
+                    </button>
+                  </div>
+                </div>
+
+                <div className="api-form-actions">
+                  <button className="api-cancel-btn" onClick={() => setShowAddForm(false)}>
+                    取消
+                  </button>
+                  <button
+                    className="api-save-btn"
+                    onClick={handleAddApi}
+                    disabled={!apiKey.trim()}
+                  >
+                    保存
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {apis.length === 0 && (
+              <p className="setting-hint">
+                添加一个或多个 AI 平台的 API Key，可在不同 AI 之间自由切换，所有 AI 共享同一套对话记忆。
+              </p>
+            )}
+
+            {activeApi && (
+              <p className="setting-hint active-api-hint">
+                当前激活：<strong>{activeApi.name}</strong> ({API_PLATFORM_LABELS[activeApi.platform]})
+              </p>
+            )}
           </div>
 
           <div className="setting-group">
@@ -159,7 +449,23 @@ export function SettingsDrawer({
             </p>
           </div>
 
-
+          {user && onLogout && (
+            <div className="setting-group">
+              <div className="user-info-section">
+                <div className="user-info-line">
+                  <span className="user-info-label">账号</span>
+                  <span className="user-info-value">{user.email}</span>
+                </div>
+                <div className="user-info-line">
+                  <span className="user-info-label">今日用量</span>
+                  <span className="user-info-value">{user.dailyUsage} / {user.dailyLimit} 次</span>
+                </div>
+                <button className="settings-logout-btn" onClick={onLogout}>
+                  退出登录
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

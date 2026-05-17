@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { CallStatus, SpeakingState, Message, Accent, Difficulty, Scene, UserSettings } from './types'
+import type { CallStatus, SpeakingState, Message, Accent, Difficulty, Scene, UserSettings, APIConfig } from './types'
 import { DEFAULT_SETTINGS } from './types'
-import { getGreeting, generateAIResponse, getCorrection, generateEncouragement } from './data/scenarios'
+import { getGreeting, generateAIResponse, getCorrection, generateContextualResponse } from './data/scenarios'
 import { useSpeechRecognition } from './hooks/useSpeechRecognition'
 import { useSpeechSynthesis } from './hooks/useSpeechSynthesis'
 import { useCallTimer } from './hooks/useCallTimer'
@@ -12,12 +12,27 @@ import { CallArea } from './components/CallArea'
 import { ControlPanel } from './components/ControlPanel'
 import { SettingsDrawer } from './components/SettingsDrawer'
 import { HistoryPage } from './components/HistoryPage'
+import LoginPage from './components/LoginPage'
+import * as api from './services/api'
 import './App.css'
 
 let messageIdCounter = 0
 function generateId(): string {
   messageIdCounter++
   return `msg-${Date.now()}-${messageIdCounter}`
+}
+
+const DEFAULT_API: APIConfig = {
+  id: '__default__',
+  name: '默认 AI',
+  platform: 'custom',
+  apiUrl: 'https://api.chatanywhere.tech/v1',
+  apiModel: 'deepseek-chat',
+  apiKey: '__worker_managed__',
+}
+
+function needsAuth(): boolean {
+  return import.meta.env.PROD
 }
 
 function App() {
@@ -31,6 +46,8 @@ function App() {
   const [textInput, setTextInput] = useState('')
   const [usingAI, setUsingAI] = useState(false)
   const [revealedChars, setRevealedChars] = useState(0)
+  const [user, setUser] = useState<api.UserInfo | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
 
   const isProcessingRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
@@ -38,6 +55,17 @@ function App() {
   const isMutedRef = useRef(isMuted)
   const callStatusRef = useRef(callStatus)
   const startRecognitionRef = useRef<() => void>(() => {})
+
+  useEffect(() => {
+    if (needsAuth()) {
+      api.getMe()
+        .then((res) => setUser(res.user))
+        .catch(() => {})
+        .finally(() => setAuthChecked(true))
+    } else {
+      setAuthChecked(true)
+    }
+  }, [])
 
   useEffect(() => {
     settingsRef.current = settings
@@ -74,19 +102,25 @@ function App() {
     return msg
   }, [])
 
-  const speechSynth = useSpeechSynthesis({
-    onWord: (charIndex: number) => {
-      setRevealedChars(charIndex)
-    },
-  })
+  const getActiveApi = useCallback((): APIConfig | null => {
+    if (needsAuth() && !user) return null
+    const { apis, activeApiId } = settingsRef.current
+    const userApi = apis.find((a) => a.id === activeApiId)
+    if (userApi) return userApi
+    if (needsAuth()) return DEFAULT_API
+    return null
+  }, [user])
+
+  const speechSynth = useSpeechSynthesis({})
 
   const revealIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const startRevealInterval = useCallback((text: string, startTime: number, speed: number) => {
+  const startRevealInterval = useCallback((text: string, speed: number) => {
     if (revealIntervalRef.current) clearInterval(revealIntervalRef.current)
     const charsPerSec = 14 * speed
+    const start = Date.now()
     revealIntervalRef.current = setInterval(() => {
-      const elapsed = (Date.now() - startTime) / 1000
+      const elapsed = (Date.now() - start) / 1000
       const target = Math.min(Math.floor(elapsed * charsPerSec), text.length)
       setRevealedChars(target)
     }, 30)
@@ -101,8 +135,9 @@ function App() {
 
   const processAIResponse = useCallback(
     async (userText: string) => {
-      const { difficulty, correctionEnabled, lastScene, apiKey, apiUrl, apiModel } = settingsRef.current
+      const { difficulty, correctionEnabled, lastScene } = settingsRef.current
       const history = messagesRef.current
+      const activeApi = getActiveApi()
 
       let correction: string | undefined
       if (correctionEnabled) {
@@ -113,13 +148,12 @@ function App() {
       addMessage('user', userText, correction)
 
       try {
-        const { text: response, usedAI } = await generateAIResponse(userText, lastScene, difficulty, history, correctionEnabled, apiKey, apiUrl, apiModel)
+        const { text: response, usedAI } = await generateAIResponse(userText, lastScene, difficulty, history, correctionEnabled, activeApi?.apiKey, activeApi?.apiUrl, activeApi?.apiModel)
         setUsingAI(usedAI)
         addMessage('ai', response)
 
         setRevealedChars(0)
-        const startTime = Date.now()
-        startRevealInterval(response, startTime, settingsRef.current.speed)
+        startRevealInterval(response, settingsRef.current.speed)
         await speechSynth.speak(response, settingsRef.current.accent, settingsRef.current.speed).catch(() => {})
         stopRevealInterval()
         setRevealedChars(response.length)
@@ -127,8 +161,7 @@ function App() {
         const fallback = "Sorry, I'm having trouble connecting. Could you say that again?"
         addMessage('ai', fallback)
         setRevealedChars(0)
-        const fbStart = Date.now()
-        startRevealInterval(fallback, fbStart, settingsRef.current.speed)
+        startRevealInterval(fallback, settingsRef.current.speed)
         await speechSynth.speak(fallback, settingsRef.current.accent, settingsRef.current.speed).catch(() => {})
         stopRevealInterval()
         setRevealedChars(fallback.length)
@@ -140,7 +173,7 @@ function App() {
         startRecognitionRef.current()
       }
     },
-    [addMessage, speechSynth]
+    [addMessage, speechSynth, getActiveApi]
   )
 
   const handleSpeechResult = useCallback(
@@ -162,32 +195,41 @@ function App() {
   }, [textInput, handleSpeechResult])
 
   const handlePause = useCallback(
-    async (partialText: string) => {
-      if (callStatusRef.current !== 'connected' || isProcessingRef.current) return
+    async (finalText: string) => {
+      if (callStatusRef.current !== 'connected') return
+      if (!settings.listeningModeEnabled) return
 
-      const { apiKey, apiUrl, apiModel, accent, speed } = settingsRef.current
+      const { accent, speed, lastScene } = settingsRef.current
+      const activeApi = getActiveApi()
       const history = messagesRef.current
 
-      setSpeakingState('encouraging')
+      addMessage('user', finalText)
+
+      setSpeakingState('ai-speaking')
 
       try {
-        const encouragement = await generateEncouragement(partialText, history, apiKey, apiUrl, apiModel)
-        addMessage('ai', encouragement)
+        const response = await generateContextualResponse(finalText, history, lastScene, activeApi?.apiKey, activeApi?.apiUrl, activeApi?.apiModel)
+        addMessage('ai', response)
         setRevealedChars(0)
-        const encStart = Date.now()
-        startRevealInterval(encouragement, encStart, speed)
-        await speechSynth.speak(encouragement, accent, speed).catch(() => {})
+        startRevealInterval(response, speed)
+        await speechSynth.speak(response, accent, speed).catch(() => {})
         stopRevealInterval()
-        setRevealedChars(encouragement.length)
+        setRevealedChars(response.length)
       } catch {
-        // silently fail, encouragement is optional
+        // silent fail
       }
 
       if (callStatusRef.current === 'connected') {
+        isProcessingRef.current = false
         setSpeakingState('listening')
+        setTimeout(() => {
+          if (callStatusRef.current === 'connected' && !isProcessingRef.current && !isMutedRef.current) {
+            startRecognitionRef.current()
+          }
+        }, 500)
       }
     },
-    [addMessage, speechSynth]
+    [addMessage, speechSynth, settings.listeningModeEnabled, getActiveApi]
   )
 
   const {
@@ -232,12 +274,13 @@ function App() {
       audioViz.start()
       setSpeakingState('ai-speaking')
 
-      const { lastScene, difficulty, correctionEnabled, apiKey, apiUrl, apiModel, accent, speed } = settingsRef.current
+      const { lastScene, difficulty, correctionEnabled, accent, speed } = settingsRef.current
+      const activeApi = getActiveApi()
 
       let greeting: string
       let usedAI = false
 
-      if (apiKey) {
+      if (activeApi?.apiKey) {
         try {
           const result = await generateAIResponse(
             '',
@@ -245,9 +288,9 @@ function App() {
             difficulty,
             [],
             correctionEnabled,
-            apiKey,
-            apiUrl,
-            apiModel
+            activeApi.apiKey,
+            activeApi.apiUrl,
+            activeApi.apiModel
           )
           greeting = result.text
           usedAI = result.usedAI
@@ -262,8 +305,7 @@ function App() {
       addMessage('ai', greeting)
 
       setRevealedChars(0)
-      const greetStart = Date.now()
-      startRevealInterval(greeting, greetStart, speed)
+      startRevealInterval(greeting, speed)
       speechSynth.speak(greeting, accent, speed)
         .then(() => {
           stopRevealInterval()
@@ -280,7 +322,7 @@ function App() {
     }
 
     initCall()
-  }, [timer, addMessage, speechSynth, startRecognition, audioViz])
+  }, [timer, addMessage, speechSynth, startRecognition, audioViz, getActiveApi])
 
   const handleHangup = useCallback(() => {
     stopRecognition()
@@ -290,10 +332,20 @@ function App() {
     timer.stop()
     setCallStatus('ended')
     setSpeakingState('idle')
+    setRevealedChars(0)
     isProcessingRef.current = false
 
     const currentMessages = messagesRef.current
     if (currentMessages.length > 0) {
+      if (needsAuth() && user) {
+        api.saveHistory({
+          scene: settingsRef.current.lastScene,
+          difficulty: settingsRef.current.difficulty,
+          messages: currentMessages.map((m) => ({ role: m.role, content: m.content })),
+          durationSeconds: timer.elapsed,
+        }).catch(() => {})
+      }
+
       try {
         const history = JSON.parse(localStorage.getItem('seuEngHistory') || '[]')
         history.push({
@@ -311,7 +363,7 @@ function App() {
         // storage unavailable
       }
     }
-  }, [stopRecognition, speechSynth, timer, audioViz, stopRevealInterval])
+  }, [stopRecognition, speechSynth, timer, audioViz, stopRevealInterval, user])
 
   const handleToggleMute = useCallback(() => {
     setIsMuted((prev) => {
@@ -361,12 +413,81 @@ function App() {
     setSettings((prev) => ({ ...prev, listeningModeEnabled: !prev.listeningModeEnabled }))
   }, [setSettings])
 
-  const handleApiKeyChange = useCallback(
-    (apiKey: string) => {
-      setSettings((prev) => ({ ...prev, apiKey }))
+  const handleAddApi = useCallback(
+    (api: Omit<APIConfig, 'id'>) => {
+      setSettings((prev) => {
+        const newApi: APIConfig = {
+          ...api,
+          id: `api-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        }
+        const newApis = [...prev.apis, newApi]
+        return {
+          ...prev,
+          apis: newApis,
+          activeApiId: prev.activeApiId || newApi.id,
+        }
+      })
     },
     [setSettings]
   )
+
+  const handleRemoveApi = useCallback(
+    (id: string) => {
+      setSettings((prev) => {
+        const newApis = prev.apis.filter((a) => a.id !== id)
+        return {
+          ...prev,
+          apis: newApis,
+          activeApiId: prev.activeApiId === id ? (newApis[0]?.id || null) : prev.activeApiId,
+        }
+      })
+    },
+    [setSettings]
+  )
+
+  const handleSetActiveApi = useCallback(
+    (id: string | null) => {
+      setSettings((prev) => ({ ...prev, activeApiId: id }))
+    },
+    [setSettings]
+  )
+
+  const handleUpdateApi = useCallback(
+    (id: string, updates: Omit<APIConfig, 'id'>) => {
+      setSettings((prev) => ({
+        ...prev,
+        apis: prev.apis.map((a) =>
+          a.id === id
+            ? { ...a, name: updates.name, platform: updates.platform, apiUrl: updates.apiUrl, apiModel: updates.apiModel }
+            : a
+        ),
+      }))
+    },
+    [setSettings]
+  )
+
+  const handleLogin = useCallback((loggedInUser: api.UserInfo) => {
+    setUser(loggedInUser)
+  }, [])
+
+  const handleLogout = useCallback(() => {
+    api.clearToken()
+    setUser(null)
+  }, [])
+
+  if (!authChecked) {
+    return (
+      <div className="app-container">
+        <div className="loading-screen">加载中...</div>
+      </div>
+    )
+  }
+
+  if (needsAuth() && !user) {
+    return <LoginPage onLogin={handleLogin} />
+  }
+
+  const showDefaultApiHint = needsAuth() && !settings.apis.find((a) => a.id === settings.activeApiId)
 
   return (
     <div className="app-container">
@@ -378,6 +499,8 @@ function App() {
             status={callStatus}
             accent={settings.accent}
             formattedTime={timer.formatted}
+            user={user}
+            onLogout={handleLogout}
           />
 
           <CallArea
@@ -391,9 +514,15 @@ function App() {
             onCall={handleCall}
           />
 
-          {callStatus === 'connected' && !usingAI && (
+          {callStatus === 'connected' && !usingAI && !needsAuth() && (
             <div className="ai-mode-hint">
-              未配置 API Key，使用本地回复。在设置中填入 DeepSeek API Key 启用 AI 对话
+              未配置 API，使用本地回复。在设置中添加 API Key 启用 AI 对话
+            </div>
+          )}
+
+          {callStatus === 'connected' && showDefaultApiHint && (
+            <div className="ai-mode-hint">
+              使用默认 AI · 每日 {user?.dailyLimit || 100} 次 · 已用 {user?.dailyUsage || 0} 次
             </div>
           )}
 
@@ -473,13 +602,19 @@ function App() {
         difficulty={settings.difficulty}
         correctionEnabled={settings.correctionEnabled}
         listeningModeEnabled={settings.listeningModeEnabled}
-        apiKey={settings.apiKey}
+        apis={settings.apis}
+        activeApiId={settings.activeApiId}
         onAccentChange={handleAccentChange}
         onDifficultyChange={handleDifficultyChange}
         onCorrectionToggle={handleCorrectionToggle}
         onListeningModeToggle={handleListeningModeToggle}
-        onApiKeyChange={handleApiKeyChange}
+        onAddApi={handleAddApi}
+        onUpdateApi={handleUpdateApi}
+        onRemoveApi={handleRemoveApi}
+        onSetActiveApi={handleSetActiveApi}
         onClose={() => setSettingsOpen(false)}
+        onLogout={needsAuth() ? handleLogout : undefined}
+        user={user ?? undefined}
       />
     </div>
   )

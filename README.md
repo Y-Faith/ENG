@@ -19,7 +19,7 @@
 │  (设置/历史)      (麦克风音频)                │
 └─────────────────────────────────────────────┘
         │
-   IGA Pages
+   GitHub Pages
   (静态托管)
 ```
 
@@ -31,7 +31,7 @@
 | 语音合成 | Web Speech API (`SpeechSynthesis`) | 文字转语音播报 AI 回复 |
 | AI 对话 | DeepSeek API（用户配置 Key）| 真实英文对话生成 |
 | 数据持久化 | `localStorage` | 设置、通话历史 |
-| 部署 | IGA Pages | 静态站点托管 |
+| 部署 | GitHub Pages | 静态站点托管 |
 
 **重要**：本项目是**纯前端应用**，无后端服务器。AI 对话依赖用户自己在设置中填入 DeepSeek API Key，数据全部存储在浏览器本地。
 
@@ -41,8 +41,9 @@
 
 ```
 my-react-app/
-├── .iga/                    # IGA Pages 部署配置
-│   └── project.json        # 项目 ID 和名称
+├── .github/                # GitHub Actions 部署工作流
+│   └── workflows/
+│       └── deploy.yml     # 自动构建 + 部署到 GitHub Pages
 ├── dist/                    # 生产构建产物（部署用）
 │   ├── assets/
 │   ├── index.html
@@ -132,32 +133,24 @@ npm run build
 npm run preview
 ```
 
-`dist/` 目录内的文件即可部署到任意静态托管平台（IGA Pages、Netlify、Vercel 等）。
+`dist/` 目录内的文件即可部署到任意静态托管平台（GitHub Pages、Netlify、Cloudflare Pages 等）。
 
 ---
 
-## 六、部署到 IGA Pages
+## 六、部署
 
-### 方式一：命令行部署
+### GitHub Pages（当前）
 
-```bash
-cd my-react-app
+push 到 `master` 分支自动触发 GitHub Actions 构建部署。
 
-# 全局安装 iga 工具（首次）
-npm install -g @iga/cli
+### 本地开发 API 代理
 
-# 登录（按提示输入 Token）
-iga login
+由于部分 API 中转服务（如 ChatAnywhere）不返回 CORS 头，浏览器直连会被拦截。
+开发模式下 Vite 代理自动处理，无需额外配置。
 
-# 构建 + 上传
-iga deploy
-```
+### Cloudflare（计划中）
 
-### 方式二：手动上传
-
-1. 运行 `npm run build`
-2. 将 `dist/` 整个目录打包
-3. 在 [IGA Pages 控制台](https://iga.igencloud.com) 手动上传
+后续将通过 Cloudflare Workers 代理 API 请求，解决生产环境 CORS 问题。
 
 ---
 

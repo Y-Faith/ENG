@@ -1,4 +1,5 @@
 import type { Message, Scene, Difficulty } from '../types'
+import { proxyAI } from './api'
 
 function buildSystemPrompt(scene: Scene, difficulty: Difficulty, correctionEnabled: boolean): string {
   const sceneContext: Record<Scene, string> = {
@@ -23,6 +24,49 @@ ${correctionInstruction}
 - NEVER mention that you are an AI or a language model
 
 The student's English level is ${difficulty}. Adjust your vocabulary and sentence complexity accordingly.`
+}
+
+interface FetchParams {
+  model: string
+  messages: Array<{ role: string; content: string }>
+  temperature: number
+  max_tokens: number
+}
+
+export async function fetchChatCompletion(
+  apiKey: string,
+  apiUrl: string,
+  params: FetchParams
+): Promise<string> {
+  const baseUrl = apiUrl.replace(/\/+$/, '')
+  const targetUrl = `${baseUrl}/chat/completions`
+  const authHeaders = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${apiKey}`,
+  }
+
+  if (import.meta.env.DEV) {
+    const response = await fetch('/api/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        targetUrl,
+        headers: authHeaders,
+        reqBody: params,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error?.message || `API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.choices[0].message.content.trim()
+  }
+
+  const data = await proxyAI(targetUrl, authHeaders, params)
+  return data.choices[0].message.content.trim()
 }
 
 export async function getAIResponse(
@@ -51,28 +95,12 @@ export async function getAIResponse(
 
   messages.push({ role: 'user', content: userMessage })
 
-  const baseUrl = apiUrl.replace(/\/+$/, '')
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: apiModel,
-      messages,
-      temperature: 0.7,
-      max_tokens: 150,
-    }),
+  return fetchChatCompletion(apiKey, apiUrl, {
+    model: apiModel,
+    messages,
+    temperature: 0.7,
+    max_tokens: 150,
   })
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error?.message || `API error: ${response.status}`)
-  }
-
-  const data = await response.json()
-  return data.choices[0].message.content.trim()
 }
 
 export async function getEncouragement(
@@ -98,25 +126,10 @@ export async function getEncouragement(
 
   messages.push({ role: 'user', content: `[The student is still speaking, this is what they've said so far]: ${partialText}` })
 
-  const baseUrl = apiUrl.replace(/\/+$/, '')
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: apiModel,
-      messages,
-      temperature: 0.9,
-      max_tokens: 15,
-    }),
+  return fetchChatCompletion(apiKey, apiUrl, {
+    model: apiModel,
+    messages,
+    temperature: 0.9,
+    max_tokens: 15,
   })
-
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`)
-  }
-
-  const data = await response.json()
-  return data.choices[0].message.content.trim()
 }

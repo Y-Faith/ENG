@@ -24,7 +24,7 @@
 | 语音合成 | Web Speech API (SpeechSynthesis) |
 | AI 对话 | DeepSeek API（用户自行配置 Key）|
 | 数据存储 | localStorage |
-| 部署平台 | IGA Pages |
+| 部署平台 | GitHub Pages |
 | 域名 | `yfaith.dpdens.org`（DigitalPlat 注册，Cloudflare DNS）|
 
 ### 2.2 项目目录
@@ -54,13 +54,13 @@ d:\c++\trae\my-react-app\
 │   │   └── index.ts
 │   ├── App.tsx                   # 根组件
 │   └── App.css
-├── dist/                         # 已构建产物（已部署 IGA Pages）
+├── dist/                         # 已构建产物（已部署 GitHub Pages）
 └── README.md                     # 工程说明书（2026-05-10 编写）
 ```
 
 ### 2.3 已部署地址
 
-- 前端：`https://call-english.iga.igencloud.com`（IGA Pages）
+- 前端：`https://yfaith.github.io/ENG`（GitHub Pages）
 
 ---
 
@@ -163,7 +163,7 @@ setTimeout 1500ms 拨号
 2. 波形动画改成了 Canvas 录音器风格
 3. 语音识别 2s 静音超时
 4. API Key 设置安全（不可复制）
-5. 部署到 IGA Pages
+5. 部署到 GitHub Pages
 
 我们接下来要做的是：[你的需求]
 ```
