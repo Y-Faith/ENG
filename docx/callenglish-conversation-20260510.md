@@ -1,14 +1,14 @@
-# CallEnglish 项目对话记录
+# SEU-ENG 项目对话记录
 
 > 存档日期：2026-05-10
-> 存档位置：D:\c++\trae\docx\callenglish-conversation-20260510.md
+> 存档位置：D:\c++\trae\docx\seu-eng-conversation-20260510.md
 
 ---
 
 ## 一、用户基本信息
 
 - **身份**：编程零基础开发者，追求 Vibe Coding 极致体验
-- **目标**：开发一个 AI 英语口语陪练 App「CallEnglish」
+- **目标**：开发一个 AI 英语口语陪练 App「SEU-ENG」
 - **协作方式**：与 AI 同频共舞，通过对话带教完成项目
 
 ---
@@ -158,7 +158,7 @@ setTimeout 1500ms 拨号
 下次对话可以这样开始：
 
 ```
-我：继续上次的 CallEnglish 项目。上次我们完成了：
+我：继续上次的 SEU-ENG 项目。上次我们完成了：
 1. 前端全部功能开发
 2. 波形动画改成了 Canvas 录音器风格
 3. 语音识别 2s 静音超时

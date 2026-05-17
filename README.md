@@ -1,4 +1,4 @@
-# CallEnglish — AI 英语陪练电话
+# SEU-ENG — AI 英语陪练电话
 
 一个通过模拟电话界面练习英语口语的 Web 应用。AI 外教 Emma 全程英文对话，实时语音识别 + 语音合成，支持场景切换、难度调节、语法纠错和通话历史。
 
@@ -280,8 +280,8 @@ iga deploy
 
 在浏览器控制台执行：
 ```js
-localStorage.removeItem('callEnglishHistory')
-localStorage.removeItem('callEnglishSettings')
+localStorage.removeItem('seuEngHistory')
+localStorage.removeItem('seuEngSettings')
 location.reload()
 ```
 
@@ -305,4 +305,4 @@ location.reload()
 
 ---
 
-*最后更新：2026-05-10 · CallEnglish v1.0*
+*最后更新：2026-05-10 · SEU-ENG v1.0*

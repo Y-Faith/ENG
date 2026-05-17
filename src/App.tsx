@@ -21,7 +21,7 @@ function generateId(): string {
 }
 
 function App() {
-  const [settings, setSettings] = useLocalStorage<UserSettings>('callEnglishSettings', DEFAULT_SETTINGS)
+  const [settings, setSettings] = useLocalStorage<UserSettings>('seuEngSettings', DEFAULT_SETTINGS)
   const [callStatus, setCallStatus] = useState<CallStatus>('idle')
   const [speakingState, setSpeakingState] = useState<SpeakingState>('idle')
   const [messages, setMessages] = useState<Message[]>([])
@@ -295,7 +295,7 @@ function App() {
     const currentMessages = messagesRef.current
     if (currentMessages.length > 0) {
       try {
-        const history = JSON.parse(localStorage.getItem('callEnglishHistory') || '[]')
+        const history = JSON.parse(localStorage.getItem('seuEngHistory') || '[]')
         history.push({
           id: generateId(),
           date: new Date().toISOString(),
@@ -306,7 +306,7 @@ function App() {
         if (history.length > 50) {
           history.splice(0, history.length - 50)
         }
-        localStorage.setItem('callEnglishHistory', JSON.stringify(history))
+        localStorage.setItem('seuEngHistory', JSON.stringify(history))
       } catch {
         // storage unavailable
       }

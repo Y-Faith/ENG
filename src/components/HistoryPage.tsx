@@ -30,7 +30,7 @@ export function HistoryPage({ onClose }: HistoryPageProps) {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('callEnglishHistory')
+      const raw = localStorage.getItem('seuEngHistory')
       if (raw) {
         const parsed = JSON.parse(raw) as ConversationRecord[]
         setRecords(parsed.reverse())
@@ -44,7 +44,7 @@ export function HistoryPage({ onClose }: HistoryPageProps) {
     const updated = records.filter((r) => r.id !== id)
     setRecords(updated)
     try {
-      localStorage.setItem('callEnglishHistory', JSON.stringify(updated.reverse()))
+      localStorage.setItem('seuEngHistory', JSON.stringify(updated.reverse()))
     } catch {
       // ignore
     }
@@ -53,7 +53,7 @@ export function HistoryPage({ onClose }: HistoryPageProps) {
   const handleClearAll = () => {
     setRecords([])
     try {
-      localStorage.removeItem('callEnglishHistory')
+      localStorage.removeItem('seuEngHistory')
     } catch {
       // ignore
     }
