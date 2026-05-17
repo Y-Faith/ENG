@@ -42,7 +42,7 @@ function apiProxyPlugin() {
 
 export default defineConfig({
   plugins: [react(), apiProxyPlugin()],
-  base: '/ENG/',
+  base: '/',
   server: {
     host: '127.0.0.1',
     port: 5173,
