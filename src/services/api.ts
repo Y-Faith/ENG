@@ -56,18 +56,18 @@ export async function register(
   password: string,
   displayName?: string
 ): Promise<{ token: string; user: UserInfo }> {
-  return apiCall('/auth/register', 'POST', { email, password, displayName })
+  return apiCall('/api/auth/register', 'POST', { email, password, displayName })
 }
 
 export async function login(
   email: string,
   password: string
 ): Promise<{ token: string; user: UserInfo }> {
-  return apiCall('/auth/login', 'POST', { email, password })
+  return apiCall('/api/auth/login', 'POST', { email, password })
 }
 
 export async function getMe(): Promise<{ user: UserInfo }> {
-  return apiCall('/auth/me')
+  return apiCall('/api/auth/me')
 }
 
 export async function proxyAI(
@@ -75,11 +75,11 @@ export async function proxyAI(
   reqHeaders: Record<string, string>,
   reqBody: object
 ): Promise<{ choices: Array<{ message: { content: string } }> }> {
-  return apiCall('/proxy', 'POST', { targetUrl, headers: reqHeaders, reqBody })
+  return apiCall('/api/proxy', 'POST', { targetUrl, headers: reqHeaders, reqBody })
 }
 
 export async function getHistory(): Promise<{ conversations: Conversation[] }> {
-  return apiCall('/history')
+  return apiCall('/api/history')
 }
 
 export async function saveHistory(params: {
@@ -88,11 +88,11 @@ export async function saveHistory(params: {
   messages: Array<{ role: string; content: string }>
   durationSeconds?: number
 }): Promise<{ id: string }> {
-  return apiCall('/history', 'POST', params)
+  return apiCall('/api/history', 'POST', params)
 }
 
 export async function getUsage(): Promise<{ dailyUsage: number; dailyLimit: number }> {
-  return apiCall('/usage')
+  return apiCall('/api/usage')
 }
 
 export function saveToken(token: string): void {
