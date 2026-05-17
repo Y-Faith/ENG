@@ -1,5 +1,5 @@
 const WORKER_URL = import.meta.env.PROD
-  ? 'https://call-english-worker.YOUR_SUBDOMAIN.workers.dev'
+  ? 'https://seu-eng-worker.y9267347664.workers.dev'
   : '/api'
 
 function getToken(): string | null {

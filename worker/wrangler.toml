@@ -1,25 +1,13 @@
-name = "call-english-worker"
+name = "seu-eng-worker"
 main = "src/index.ts"
 compatibility_date = "2025-05-12"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "call-english-db"
-database_id = ""
+database_name = "seu-eng-db"
+database_id = "35eea6af-4baf-4619-b04f-2f381874f232"
 
-[[kv_namespaces]]
-binding = "RATE_LIMIT"
-id = ""
-
-[env.production.vars]
-AI_API_KEY = ""
+[vars]
 AI_API_URL = "https://api.chatanywhere.tech/v1"
 AI_MODEL = "deepseek-chat"
 DAILY_LIMIT = "100"
-
-[env.production.routes]
-pattern = "api/*"
-zone_id = ""
-
-[dev]
-port = 8787

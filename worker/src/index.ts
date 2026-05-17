@@ -15,7 +15,7 @@ const app = new Hono<{ Bindings: Env }>()
 
 app.use('*', cors())
 
-const JWT_SECRET = 'call-english-jwt-secret-2025'
+const JWT_SECRET = 'seu-eng-jwt-secret-2025'
 const JWT_ALG: SignatureAlgorithm = 'HS256'
 const DEFAULT_DAILY_LIMIT = 100
 
