@@ -35,8 +35,8 @@ export interface UserInfo {
   id: string
   email: string
   displayName: string
-  weekUsage: number
-  weekLimit: number
+  dayUsage: number
+  dayLimit: number
 }
 
 export interface Conversation {
@@ -89,7 +89,7 @@ export async function saveHistory(params: {
   return apiCall('/api/history', 'POST', params)
 }
 
-export async function getUsage(): Promise<{ weekUsage: number; weekLimit: number }> {
+export async function getUsage(): Promise<{ dayUsage: number; dayLimit: number }> {
   return apiCall('/api/usage')
 }
 

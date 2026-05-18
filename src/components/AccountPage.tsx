@@ -5,8 +5,8 @@ interface UserInfo {
   id: string
   displayName: string
   email: string
-  weekUsage: number
-  weekLimit: number
+  dayUsage: number
+  dayLimit: number
 }
 
 interface AccountPageProps {
@@ -90,7 +90,7 @@ export function AccountPage({ user, onClose, onLogout }: AccountPageProps) {
     setLoading(false)
   }
 
-  const usagePercent = Math.min((user.weekUsage / user.weekLimit) * 100, 100)
+  const usagePercent = Math.min((user.dayUsage / user.dayLimit) * 100, 100)
 
   return (
     <div className="account-page">
@@ -118,8 +118,8 @@ export function AccountPage({ user, onClose, onLogout }: AccountPageProps) {
               <div className="account-page-section-title">用量信息</div>
               <div className="account-page-card">
                 <div className="account-page-usage-row">
-                  <span>本周已用</span>
-                  <span className="account-page-usage-count">{user.weekUsage} / {user.weekLimit} 次</span>
+                  <span>今日已用</span>
+                  <span className="account-page-usage-count">{user.dayUsage} / {user.dayLimit} 次</span>
                 </div>
                 <div className="account-page-usage-bar">
                   <div
@@ -131,7 +131,7 @@ export function AccountPage({ user, onClose, onLogout }: AccountPageProps) {
                   />
                 </div>
                 <div className="account-page-usage-hint">
-                  {usagePercent >= 100 ? '本周用量已用完' : `剩余 ${user.weekLimit - user.weekUsage} 次`}
+                  {usagePercent >= 100 ? '今日用量已用完' : `剩余 ${user.dayLimit - user.dayUsage} 次`}
                 </div>
               </div>
             </div>

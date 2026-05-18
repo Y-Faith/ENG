@@ -5,8 +5,8 @@ interface UserInfo {
   id: string
   displayName: string
   email: string
-  weekUsage: number
-  weekLimit: number
+  dayUsage: number
+  dayLimit: number
 }
 
 const AVATAR_COLORS = [

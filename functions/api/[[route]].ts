@@ -9,7 +9,7 @@ interface Env {
   AI_API_KEY: string
   AI_API_URL: string
   AI_MODEL: string
-  WEEKLY_LIMIT: string
+  DAILY_LIMIT: string
 }
 
 const app = new Hono<{ Bindings: Env }>()
@@ -23,18 +23,14 @@ app.use('*', cors({
 
 const JWT_SECRET = 'seu-eng-jwt-secret-2025'
 const JWT_ALG: SignatureAlgorithm = 'HS256'
-const DEFAULT_WEEKLY_LIMIT = 20
+const DEFAULT_DAILY_LIMIT = 100
 
 function uid(): string {
   return crypto.randomUUID()
 }
 
-function getWeekKey(): string {
-  const now = new Date()
-  const day = now.getDay()
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1))
-  return monday.toISOString().slice(0, 10)
+function getDayKey(): string {
+  return new Date().toISOString().slice(0, 10)
 }
 
 async function hashPassword(password: string): Promise<string> {
@@ -57,20 +53,20 @@ async function getUserId(c: any): Promise<string | null> {
   }
 }
 
-async function getWeekUsage(db: D1Database, userId: string): Promise<number> {
-  const weekKey = getWeekKey()
+async function getDayUsage(db: D1Database, userId: string): Promise<number> {
+  const dayKey = getDayKey()
   const row = await db
     .prepare('SELECT count FROM usage_logs WHERE user_id = ? AND date = ?')
-    .bind(userId, weekKey)
+    .bind(userId, dayKey)
     .first<{ count: number }>()
   return row?.count ?? 0
 }
 
-async function incrementWeekUsage(db: D1Database, userId: string): Promise<void> {
-  const weekKey = getWeekKey()
+async function incrementDayUsage(db: D1Database, userId: string): Promise<void> {
+  const dayKey = getDayKey()
   const row = await db
     .prepare('SELECT id FROM usage_logs WHERE user_id = ? AND date = ?')
-    .bind(userId, weekKey)
+    .bind(userId, dayKey)
     .first<{ id: number }>()
 
   if (row) {
@@ -81,7 +77,7 @@ async function incrementWeekUsage(db: D1Database, userId: string): Promise<void>
   } else {
     await db
       .prepare('INSERT INTO usage_logs (user_id, date, count) VALUES (?, ?, 1)')
-      .bind(userId, weekKey)
+      .bind(userId, dayKey)
       .run()
   }
 }
@@ -185,8 +181,8 @@ app.post('/api/auth/login', async (c) => {
     JWT_ALG
   )
 
-  const usage = await getWeekUsage(db, user.id)
-  const limit = parseInt(c.env.WEEKLY_LIMIT || String(DEFAULT_WEEKLY_LIMIT))
+  const usage = await getDayUsage(db, user.id)
+  const limit = parseInt(c.env.DAILY_LIMIT || String(DEFAULT_DAILY_LIMIT))
 
   return c.json({
     token,
@@ -194,8 +190,8 @@ app.post('/api/auth/login', async (c) => {
       id: user.id,
       email: user.email,
       displayName: user.display_name,
-      weekUsage: usage,
-      weekLimit: limit,
+      dayUsage: usage,
+      dayLimit: limit,
     },
   })
 })
@@ -212,16 +208,16 @@ app.get('/api/auth/me', async (c) => {
 
   if (!user) return c.json({ error: '用户不存在' }, 404)
 
-  const usage = await getWeekUsage(db, userId)
-  const limit = parseInt(c.env.WEEKLY_LIMIT || String(DEFAULT_WEEKLY_LIMIT))
+  const usage = await getDayUsage(db, userId)
+  const limit = parseInt(c.env.DAILY_LIMIT || String(DEFAULT_DAILY_LIMIT))
 
   return c.json({
     user: {
       id: user.id,
       email: user.email,
       displayName: user.display_name,
-      weekUsage: usage,
-      weekLimit: limit,
+      dayUsage: usage,
+      dayLimit: limit,
     },
   })
 })
@@ -231,11 +227,11 @@ app.post('/api/proxy', async (c) => {
   if (!userId) return c.json({ error: '请先登录' }, 401)
 
   const db = c.env.DB
-  const weeklyLimit = parseInt(c.env.WEEKLY_LIMIT || String(DEFAULT_WEEKLY_LIMIT))
+  const dailyLimit = parseInt(c.env.DAILY_LIMIT || String(DEFAULT_DAILY_LIMIT))
 
-  const usage = await getWeekUsage(db, userId)
-  if (usage >= weeklyLimit) {
-    return c.json({ error: `本周用量已用完（${weeklyLimit}次），请下周再试` }, 429)
+  const usage = await getDayUsage(db, userId)
+  if (usage >= dailyLimit) {
+    return c.json({ error: `今日用量已用完（${dailyLimit}次），明天再试` }, 429)
   }
 
   const { targetUrl, headers: reqHeaders, reqBody } = await c.req.json<{
@@ -268,7 +264,7 @@ app.post('/api/proxy', async (c) => {
       return c.json({ error: `AI API 错误: ${errorText}` }, response.status as any)
     }
 
-    await incrementWeekUsage(db, userId)
+    await incrementDayUsage(db, userId)
 
     const data = await response.json()
     return c.json(data)
@@ -333,10 +329,10 @@ app.get('/api/usage', async (c) => {
   if (!userId) return c.json({ error: '请先登录' }, 401)
 
   const db = c.env.DB
-  const usage = await getWeekUsage(db, userId)
-  const limit = parseInt(c.env.WEEKLY_LIMIT || String(DEFAULT_WEEKLY_LIMIT))
+  const usage = await getDayUsage(db, userId)
+  const limit = parseInt(c.env.DAILY_LIMIT || String(DEFAULT_DAILY_LIMIT))
 
-  return c.json({ weekUsage: usage, weekLimit: limit })
+  return c.json({ dayUsage: usage, dayLimit: limit })
 })
 
 app.post('/api/auth/change-password', async (c) => {

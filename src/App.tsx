@@ -557,7 +557,7 @@ function App() {
 
           {callStatus === 'connected' && showDefaultApiHint && (
             <div className="ai-mode-hint">
-              使用默认 AI · 每周 {user?.weekLimit || 20} 次 · 已用 {user?.weekUsage || 0} 次
+              使用默认 AI · 每日 {user?.dayLimit || 100} 次 · 已用 {user?.dayUsage || 0} 次
             </div>
           )}
 
