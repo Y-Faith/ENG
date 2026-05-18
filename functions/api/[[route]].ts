@@ -101,6 +101,47 @@ app.get('/api/health', (c) => {
   })
 })
 
+app.get('/api/test-ai', async (c) => {
+  const apiKey = c.env.AI_API_KEY
+  const apiUrl = c.env.AI_API_URL
+  const apiModel = c.env.AI_MODEL
+
+  if (!apiKey || !apiUrl) {
+    return c.json({ error: 'AI API not configured' }, 503)
+  }
+
+  try {
+    const baseUrl = apiUrl.replace(/\/+$/, '')
+    const testUrl = `${baseUrl}/chat/completions`
+    const response = await fetch(testUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: apiModel,
+        messages: [{ role: 'user', content: 'Say hello in one word.' }],
+        max_tokens: 10,
+      }),
+    })
+
+    const responseText = await response.text()
+    let parsed: any = null
+    try { parsed = JSON.parse(responseText) } catch {}
+
+    return c.json({
+      status: response.status,
+      statusText: response.statusText,
+      url: testUrl,
+      model: apiModel,
+      response: parsed || responseText,
+    })
+  } catch (e: any) {
+    return c.json({ error: e.message, stack: e.stack?.slice(0, 200) }, 502)
+  }
+})
+
 app.post('/api/auth/register', async (c) => {
   const db = c.env.DB
   const { email, password, displayName } = await c.req.json<{
