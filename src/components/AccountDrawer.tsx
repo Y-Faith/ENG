@@ -16,7 +16,7 @@ interface AccountDrawerProps {
   onUserUpdate: (user: UserInfo) => void
 }
 
-export function AccountDrawer({ user, onClose, onLogout, onUserUpdate }: AccountDrawerProps) {
+export function AccountDrawer({ user, onClose, onLogout, onUserUpdate: _onUserUpdate }: AccountDrawerProps) {
   const [view, setView] = useState<'main' | 'password' | 'delete'>('main')
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
