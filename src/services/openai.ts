@@ -1,7 +1,7 @@
 import type { Message, Scene, Difficulty } from '../types'
-import { proxyAI } from './api'
+import { proxyAI, type Memory } from './api'
 
-function buildSystemPrompt(scene: Scene, difficulty: Difficulty, correctionEnabled: boolean): string {
+function buildSystemPrompt(scene: Scene, difficulty: Difficulty, correctionEnabled: boolean, memories?: Memory[]): string {
   const sceneContext: Record<Scene, string> = {
     daily: 'everyday casual conversation',
     business: 'business English and professional communication',
@@ -11,6 +11,15 @@ function buildSystemPrompt(scene: Scene, difficulty: Difficulty, correctionEnabl
   const correctionInstruction = correctionEnabled
     ? '- When the student makes a grammar mistake, naturally correct them by starting with "It\'s better to put it this way:" followed by the correction'
     : '- Do NOT correct the student\'s grammar mistakes. Focus only on having a natural conversation'
+
+  let memorySection = ''
+  if (memories && memories.length > 0) {
+    const memoryLines = memories
+      .slice(0, 20)
+      .map((m) => `- ${m.content}`)
+      .join('\n')
+    memorySection = `\n\nWhat you remember about this student:\n${memoryLines}\n- Use these memories naturally in conversation. For example, if you know their name, use it. If you know their hobbies, ask about them. Do NOT explicitly say "I remember that you..." — just weave it in naturally.`
+  }
 
   return `You are Emma, a top-tier English tutor with years of experience. You are talking to a student who wants to practice speaking English through ${sceneContext[scene]}.
 
@@ -23,7 +32,7 @@ ${correctionInstruction}
 - Stay in character as a friendly tutor named Emma
 - NEVER mention that you are an AI or a language model
 
-The student's English level is ${difficulty}. Adjust your vocabulary and sentence complexity accordingly.`
+The student's English level is ${difficulty}. Adjust your vocabulary and sentence complexity accordingly.${memorySection}`
 }
 
 interface FetchParams {
@@ -57,9 +66,10 @@ export async function getAIResponse(
   correctionEnabled: boolean,
   apiKey: string,
   apiUrl: string,
-  apiModel: string
+  apiModel: string,
+  memories?: Memory[]
 ): Promise<string> {
-  const systemPrompt = buildSystemPrompt(scene, difficulty, correctionEnabled)
+  const systemPrompt = buildSystemPrompt(scene, difficulty, correctionEnabled, memories)
 
   const messages: Array<{ role: string; content: string }> = [
     { role: 'system', content: systemPrompt },

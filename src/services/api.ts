@@ -112,3 +112,25 @@ export async function changePassword(oldPassword: string, newPassword: string): 
 export async function deleteAccount(): Promise<{ ok: boolean }> {
   return apiCall('/api/auth/delete-account', 'POST')
 }
+
+export interface Memory {
+  id: string
+  content: string
+  category: string
+  importance: number
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export async function getMemories(): Promise<{ memories: Memory[] }> {
+  return apiCall('/api/memories')
+}
+
+export async function extractMemories(messages: Array<{ role: string; content: string }>): Promise<{ memories: Memory[] }> {
+  return apiCall('/api/memories/extract', 'POST', { messages })
+}
+
+export async function compressMemories(): Promise<{ ok: boolean }> {
+  return apiCall('/api/memories/compress', 'POST')
+}

@@ -50,6 +50,7 @@ function App() {
   const [user, setUser] = useState<api.UserInfo | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
   const [showAccountDrawer, setShowAccountDrawer] = useState(false)
+  const [userMemories, setUserMemories] = useState<api.Memory[]>([])
 
   const isProcessingRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
@@ -57,11 +58,20 @@ function App() {
   const isMutedRef = useRef(isMuted)
   const callStatusRef = useRef(callStatus)
   const startRecognitionRef = useRef<() => void>(() => {})
+  const memoriesRef = useRef<api.Memory[]>([])
+
+  useEffect(() => {
+    memoriesRef.current = userMemories
+  }, [userMemories])
 
   useEffect(() => {
     if (needsAuth()) {
       api.getMe()
-        .then((res) => setUser(res.user))
+        .then((res) => {
+          setUser(res.user)
+          return api.getMemories()
+        })
+        .then((res) => setUserMemories(res.memories))
         .catch(() => {})
         .finally(() => setAuthChecked(true))
     } else {
@@ -150,7 +160,7 @@ function App() {
       addMessage('user', userText, correction)
 
       try {
-        const { text: response, usedAI } = await generateAIResponse(userText, lastScene, difficulty, history, correctionEnabled, activeApi?.apiKey, activeApi?.apiUrl, activeApi?.apiModel)
+        const { text: response, usedAI } = await generateAIResponse(userText, lastScene, difficulty, history, correctionEnabled, activeApi?.apiKey, activeApi?.apiUrl, activeApi?.apiModel, memoriesRef.current)
         setUsingAI(usedAI)
         addMessage('ai', response)
 
@@ -292,7 +302,8 @@ function App() {
             correctionEnabled,
             activeApi.apiKey,
             activeApi.apiUrl,
-            activeApi.apiModel
+            activeApi.apiModel,
+            memoriesRef.current
           )
           greeting = result.text
           usedAI = result.usedAI
@@ -346,6 +357,19 @@ function App() {
           messages: currentMessages.map((m) => ({ role: m.role, content: m.content })),
           durationSeconds: timer.elapsed,
         }).catch(() => {})
+
+        api.extractMemories(
+          currentMessages.map((m) => ({ role: m.role, content: m.content }))
+        ).then((res) => {
+          if (res.memories.length > 0) {
+            return api.getMemories()
+          }
+          return null
+        }).then((res) => {
+          if (res) setUserMemories(res.memories)
+        }).catch(() => {})
+
+        api.compressMemories().catch(() => {})
       }
 
       try {

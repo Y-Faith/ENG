@@ -394,6 +394,223 @@ app.post('/api/auth/delete-account', async (c) => {
   return c.json({ ok: true })
 })
 
+app.get('/api/memories', async (c) => {
+  const userId = await getUserId(c)
+  if (!userId) return c.json({ error: '请先登录' }, 401)
+
+  const db = c.env.DB
+  const { results } = await db
+    .prepare('SELECT id, content, category, importance, status, created_at, updated_at FROM memories WHERE user_id = ? AND status != ? ORDER BY importance DESC, created_at DESC')
+    .bind(userId, 'archived')
+    .all<{
+      id: string
+      content: string
+      category: string
+      importance: number
+      status: string
+      created_at: string
+      updated_at: string
+    }>()
+
+  return c.json({ memories: results || [] })
+})
+
+app.post('/api/memories/extract', async (c) => {
+  const userId = await getUserId(c)
+  if (!userId) return c.json({ error: '请先登录' }, 401)
+
+  const db = c.env.DB
+  const { messages } = await c.req.json<{ messages: Array<{ role: string; content: string }> }>()
+
+  if (!messages || messages.length < 2) {
+    return c.json({ memories: [] })
+  }
+
+  const apiKey = c.env.AI_API_KEY
+  const apiUrl = c.env.AI_API_URL
+  const apiModel = c.env.AI_MODEL
+
+  if (!apiKey || !apiUrl) {
+    return c.json({ memories: [] })
+  }
+
+  const conversationText = messages
+    .map((m) => `${m.role === 'user' ? 'Student' : 'Emma'}: ${m.content}`)
+    .join('\n')
+
+  const extractPrompt = `You are a memory extraction system. Analyze the following English conversation between a student and tutor Emma. Extract ONLY important personal facts about the student that would be useful to remember for future conversations.
+
+Rules:
+- Extract facts like: name, age, occupation, hobbies, family, preferences, goals, important events, personality traits
+- Do NOT extract: grammar corrections, small talk filler, generic responses
+- Each fact should be a concise sentence (under 20 words)
+- Assign a category: "personal", "preference", "goal", "event", "trait"
+- Assign importance 1-10 (10 = very important like name/occupation, 1 = minor detail)
+- Return as JSON array: [{"content": "...", "category": "...", "importance": N}]
+- If nothing worth remembering, return empty array []
+- Return ONLY the JSON array, no other text
+
+Conversation:
+${conversationText}`
+
+  try {
+    const baseUrl = apiUrl.replace(/\/+$/, '')
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: apiModel,
+        messages: [{ role: 'user', content: extractPrompt }],
+        temperature: 0.3,
+        max_tokens: 500,
+      }),
+    })
+
+    if (!response.ok) {
+      return c.json({ memories: [] })
+    }
+
+    const data = await response.json()
+    const text = data.choices?.[0]?.message?.content?.trim() || '[]'
+
+    let extracted: Array<{ content: string; category: string; importance: number }>
+    try {
+      const jsonMatch = text.match(/\[[\s\S]*\]/)
+      extracted = jsonMatch ? JSON.parse(jsonMatch[0]) : []
+    } catch {
+      extracted = []
+    }
+
+    if (!Array.isArray(extracted) || extracted.length === 0) {
+      return c.json({ memories: [] })
+    }
+
+    const saved = []
+    for (const mem of extracted) {
+      if (!mem.content || !mem.category) continue
+      const id = uid()
+      const importance = Math.min(10, Math.max(1, mem.importance || 5))
+      await db
+        .prepare('INSERT INTO memories (id, user_id, content, category, importance) VALUES (?, ?, ?, ?, ?)')
+        .bind(id, userId, mem.content, mem.category, importance)
+        .run()
+      saved.push({ id, content: mem.content, category: mem.category, importance })
+    }
+
+    return c.json({ memories: saved })
+  } catch {
+    return c.json({ memories: [] })
+  }
+})
+
+app.post('/api/memories/compress', async (c) => {
+  const userId = await getUserId(c)
+  if (!userId) return c.json({ error: '请先登录' }, 401)
+
+  const db = c.env.DB
+  const apiKey = c.env.AI_API_KEY
+  const apiUrl = c.env.AI_API_URL
+  const apiModel = c.env.AI_MODEL
+
+  const now = new Date()
+  const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000).toISOString()
+  const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 3600 * 1000).toISOString()
+  const oneYearAgo = new Date(now.getTime() - 365 * 24 * 3600 * 1000).toISOString()
+
+  const weekOldMemories = await db
+    .prepare('SELECT id, content, category, importance, created_at FROM memories WHERE user_id = ? AND status = ? AND created_at < ?')
+    .bind(userId, 'active', oneWeekAgo)
+    .all<{ id: string; content: string; category: string; importance: number; created_at: string }>()
+
+  if (weekOldMemories.results && weekOldMemories.results.length > 0 && apiKey && apiUrl) {
+    const memoriesText = weekOldMemories.results.map((m) => `[${m.category}|${m.importance}] ${m.content}`).join('\n')
+
+    const compressPrompt = `You are a memory compression system. Given a list of memories about a person, compress them into fewer, more concise memories. Merge related memories. Remove duplicates. Keep the most important details.
+
+Rules:
+- Each compressed memory should be under 15 words
+- Keep the category and importance level
+- Return as JSON array: [{"content": "...", "category": "...", "importance": N}]
+- Return ONLY the JSON array
+
+Memories to compress:
+${memoriesText}`
+
+    try {
+      const baseUrl = apiUrl.replace(/\/+$/, '')
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: apiModel,
+          messages: [{ role: 'user', content: compressPrompt }],
+          temperature: 0.2,
+          max_tokens: 500,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const text = data.choices?.[0]?.message?.content?.trim() || '[]'
+        const jsonMatch = text.match(/\[[\s\S]*\]/)
+        const compressed = jsonMatch ? JSON.parse(jsonMatch[0]) : []
+
+        for (const old of weekOldMemories.results) {
+          await db.prepare('UPDATE memories SET status = ? WHERE id = ?').bind('compressed_source', old.id).run()
+        }
+
+        for (const mem of compressed) {
+          if (!mem.content) continue
+          const id = uid()
+          await db
+            .prepare('INSERT INTO memories (id, user_id, content, category, importance, status) VALUES (?, ?, ?, ?, ?, ?)')
+            .bind(id, userId, mem.content, mem.category || 'general', mem.importance || 5, 'active')
+            .run()
+        }
+      }
+    } catch {
+      // compression failed, keep originals
+    }
+  }
+
+  const monthOldMemories = await db
+    .prepare('SELECT id, content, category, importance FROM memories WHERE user_id = ? AND status = ? AND created_at < ?')
+    .bind(userId, 'active', oneMonthAgo)
+    .all<{ id: string; content: string; category: string; importance: number }>()
+
+  if (monthOldMemories.results) {
+    for (const mem of monthOldMemories.results) {
+      const shortContent = mem.content.length > 30 ? mem.content.substring(0, 30) + '...' : mem.content
+      await db
+        .prepare('UPDATE memories SET content = ?, status = ?, updated_at = datetime(\'now\') WHERE id = ?')
+        .bind(shortContent, 'summarized', mem.id)
+        .run()
+    }
+  }
+
+  const yearOldMemories = await db
+    .prepare('SELECT id, content, importance FROM memories WHERE user_id = ? AND status = ? AND created_at < ? AND importance < ?')
+    .bind(userId, 'summarized', oneYearAgo, 8)
+    .all<{ id: string; content: string; importance: number }>()
+
+  if (yearOldMemories.results) {
+    for (const mem of yearOldMemories.results) {
+      await db
+        .prepare('UPDATE memories SET status = ? WHERE id = ?')
+        .bind('archived', mem.id)
+        .run()
+    }
+  }
+
+  return c.json({ ok: true })
+})
+
 app.get('/api/test', (c) => c.text('hono works'))
 
 export const onRequest = handle(app)

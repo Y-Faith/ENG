@@ -229,11 +229,12 @@ export async function generateAIResponse(
   correctionEnabled: boolean,
   apiKey?: string,
   apiUrl?: string,
-  apiModel?: string
+  apiModel?: string,
+  memories?: import('../services/api').Memory[]
 ): Promise<{ text: string; usedAI: boolean }> {
   if (apiKey) {
     try {
-      const text = await getAIResponse(userText, history, scene, difficulty, correctionEnabled, apiKey, apiUrl || 'https://api.deepseek.com/v1', apiModel || 'deepseek-chat')
+      const text = await getAIResponse(userText, history, scene, difficulty, correctionEnabled, apiKey, apiUrl || 'https://api.deepseek.com/v1', apiModel || 'deepseek-chat', memories)
       return { text, usedAI: true }
     } catch (err) {
       console.error('AI API 调用失败，降级到本地回复:', err)
