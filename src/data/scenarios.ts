@@ -1,5 +1,5 @@
 import type { Scene, Difficulty, Message } from '../types'
-import { fetchChatCompletion, getAIResponse, getEncouragement } from '../services/openai'
+import { fetchDirect, getAIResponse, getEncouragement } from '../services/openai'
 
 interface GreetingSet {
   greetings: string[]
@@ -380,7 +380,7 @@ Keep your response VERY brief (1-2 sentences max). Be warm, human, and natural. 
 
       messages.push({ role: 'user', content: partialText })
 
-      const text = await fetchChatCompletion(apiKey, apiUrl!, {
+      const text = await fetchDirect(apiKey, apiUrl!, {
         model: apiModel || 'deepseek-chat',
         messages,
         temperature: 0.8,

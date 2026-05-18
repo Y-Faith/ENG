@@ -29,7 +29,7 @@ const DEFAULT_API: APIConfig = {
   platform: 'custom',
   apiUrl: 'https://api.chatanywhere.tech/v1',
   apiModel: 'qwen3.5-plus',
-  apiKey: '__worker_managed__',
+  apiKey: '__default__',
 }
 
 function needsAuth(): boolean {
@@ -50,6 +50,7 @@ function App() {
   const [user, setUser] = useState<api.UserInfo | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
   const [userMemories, setUserMemories] = useState<api.Memory[]>([])
+  const [defaultAIConfig, setDefaultAIConfig] = useState<{ apiKey: string; apiUrl: string; apiModel: string } | null>(null)
 
   const isProcessingRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
@@ -68,6 +69,12 @@ function App() {
       api.getMe()
         .then((res) => {
           setUser(res.user)
+          return api.getAIConfig()
+        })
+        .then((config) => {
+          if (config.configured) {
+            setDefaultAIConfig({ apiKey: config.apiKey!, apiUrl: config.apiUrl!, apiModel: config.apiModel! })
+          }
           return api.getMemories()
         })
         .then((res) => setUserMemories(res.memories))
@@ -118,9 +125,17 @@ function App() {
     const { apis, activeApiId } = settingsRef.current
     const userApi = apis.find((a) => a.id === activeApiId)
     if (userApi) return userApi
+    if (needsAuth() && defaultAIConfig) {
+      return {
+        ...DEFAULT_API,
+        apiKey: defaultAIConfig.apiKey,
+        apiUrl: defaultAIConfig.apiUrl,
+        apiModel: defaultAIConfig.apiModel,
+      }
+    }
     if (needsAuth()) return DEFAULT_API
     return null
-  }, [user])
+  }, [user, defaultAIConfig])
 
   const speechSynth = useSpeechSynthesis({})
 
@@ -162,6 +177,14 @@ function App() {
         const { text: response, usedAI } = await generateAIResponse(userText, lastScene, difficulty, history, correctionEnabled, activeApi?.apiKey, activeApi?.apiUrl, activeApi?.apiModel, memoriesRef.current)
         setUsingAI(usedAI)
         addMessage('ai', response)
+
+        if (usedAI && needsAuth() && activeApi?.id === '__default__') {
+          api.reportUsage().then((res) => {
+            if (res.ok && user) {
+              setUser({ ...user, weekUsage: res.weekUsage, weekLimit: res.weekLimit })
+            }
+          }).catch(() => {})
+        }
 
         setRevealedChars(0)
         startRevealInterval(response, settingsRef.current.speed)
@@ -315,6 +338,14 @@ function App() {
 
       setUsingAI(usedAI)
       addMessage('ai', greeting)
+
+      if (usedAI && needsAuth() && activeApi?.id === '__default__') {
+        api.reportUsage().then((res) => {
+          if (res.ok && user) {
+            setUser({ ...user, weekUsage: res.weekUsage, weekLimit: res.weekLimit })
+          }
+        }).catch(() => {})
+      }
 
       setRevealedChars(0)
       startRevealInterval(greeting, speed)
@@ -493,11 +524,17 @@ function App() {
 
   const handleLogin = useCallback((loggedInUser: api.UserInfo) => {
     setUser(loggedInUser)
+    api.getAIConfig().then((config) => {
+      if (config.configured) {
+        setDefaultAIConfig({ apiKey: config.apiKey!, apiUrl: config.apiUrl!, apiModel: config.apiModel! })
+      }
+    }).catch(() => {})
   }, [])
 
   const handleLogout = useCallback(() => {
     api.clearToken()
     setUser(null)
+    setDefaultAIConfig(null)
     if (callStatus !== 'idle') {
       handleHangup()
     }

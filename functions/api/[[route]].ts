@@ -101,45 +101,39 @@ app.get('/api/health', (c) => {
   })
 })
 
-app.get('/api/test-ai', async (c) => {
+app.get('/api/ai-config', async (c) => {
+  const userId = await getUserId(c)
+  if (!userId) return c.json({ error: '请先登录' }, 401)
+
   const apiKey = c.env.AI_API_KEY
   const apiUrl = c.env.AI_API_URL
   const apiModel = c.env.AI_MODEL
 
   if (!apiKey || !apiUrl) {
-    return c.json({ error: 'AI API not configured' }, 503)
+    return c.json({ configured: false })
   }
 
-  try {
-    const baseUrl = apiUrl.replace(/\/+$/, '')
-    const testUrl = `${baseUrl}/chat/completions`
-    const response = await fetch(testUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: apiModel,
-        messages: [{ role: 'user', content: 'Say hello in one word.' }],
-        max_tokens: 10,
-      }),
-    })
+  return c.json({
+    configured: true,
+    apiKey,
+    apiUrl,
+    apiModel: apiModel || 'gpt-4o-mini',
+  })
+})
 
-    const responseText = await response.text()
-    let parsed: any = null
-    try { parsed = JSON.parse(responseText) } catch {}
+app.post('/api/usage/report', async (c) => {
+  const userId = await getUserId(c)
+  if (!userId) return c.json({ error: '请先登录' }, 401)
 
-    return c.json({
-      status: response.status,
-      statusText: response.statusText,
-      url: testUrl,
-      model: apiModel,
-      response: parsed || responseText,
-    })
-  } catch (e: any) {
-    return c.json({ error: e.message, stack: e.stack?.slice(0, 200) }, 502)
+  const db = c.env.DB
+  const weeklyLimit = parseInt(c.env.WEEKLY_LIMIT || String(DEFAULT_WEEKLY_LIMIT))
+  const usage = await getWeekUsage(db, userId)
+  if (usage >= weeklyLimit) {
+    return c.json({ error: `本周用量已用完（${weeklyLimit}次）` }, 429)
   }
+
+  await incrementWeekUsage(db, userId)
+  return c.json({ ok: true, weekUsage: usage + 1, weekLimit: weeklyLimit })
 })
 
 app.post('/api/auth/register', async (c) => {
