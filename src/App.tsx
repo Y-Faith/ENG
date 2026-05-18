@@ -13,7 +13,7 @@ import { ControlPanel } from './components/ControlPanel'
 import { SettingsDrawer } from './components/SettingsDrawer'
 import { HistoryPage } from './components/HistoryPage'
 import LoginPage from './components/LoginPage'
-import { AccountDrawer } from './components/AccountDrawer'
+import { AccountPage } from './components/AccountPage'
 import * as api from './services/api'
 import './App.css'
 
@@ -43,13 +43,12 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isMuted, setIsMuted] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [currentView, setCurrentView] = useState<'call' | 'history'>('call')
+  const [currentView, setCurrentView] = useState<'call' | 'history' | 'account'>('call')
   const [textInput, setTextInput] = useState('')
   const [usingAI, setUsingAI] = useState(false)
   const [revealedChars, setRevealedChars] = useState(0)
   const [user, setUser] = useState<api.UserInfo | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
-  const [showAccountDrawer, setShowAccountDrawer] = useState(false)
   const [userMemories, setUserMemories] = useState<api.Memory[]>([])
 
   const isProcessingRef = useRef(false)
@@ -523,6 +522,12 @@ function App() {
     <div className="app-container">
       {currentView === 'history' ? (
         <HistoryPage onClose={() => setCurrentView('call')} />
+      ) : currentView === 'account' && user ? (
+        <AccountPage
+          user={user}
+          onClose={() => setCurrentView('call')}
+          onLogout={() => { setCurrentView('call'); handleLogout() }}
+        />
       ) : (
         <div className="phone-frame">
           <StatusBar
@@ -530,7 +535,7 @@ function App() {
             accent={settings.accent}
             formattedTime={timer.formatted}
             user={user}
-            onUserClick={() => setShowAccountDrawer(true)}
+            onUserClick={() => setCurrentView('account')}
           />
 
           <CallArea
@@ -647,14 +652,6 @@ function App() {
         user={user ?? undefined}
       />
 
-      {showAccountDrawer && user && (
-        <AccountDrawer
-          user={user}
-          onClose={() => setShowAccountDrawer(false)}
-          onLogout={() => { setShowAccountDrawer(false); handleLogout() }}
-          onUserUpdate={(u) => setUser(u)}
-        />
-      )}
     </div>
   )
 }

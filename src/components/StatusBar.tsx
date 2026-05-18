@@ -2,10 +2,31 @@ import type { CallStatus, Accent } from '../types'
 import { AI_NAMES, AI_TITLES } from '../types'
 
 interface UserInfo {
+  id: string
   displayName: string
   email: string
   weekUsage: number
   weekLimit: number
+}
+
+const AVATAR_COLORS = [
+  '#E74C3C', '#E67E22', '#F39C12', '#27AE60',
+  '#1ABC9C', '#2980B9', '#8E44AD', '#D35400',
+  '#16A085', '#2C3E50', '#C0392B', '#7D3C98',
+  '#2874A6', '#1E8449', '#B7950B', '#A93226',
+]
+
+function getAvatarColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+
+function getInitial(name: string): string {
+  const ch = name.trim()[0]
+  return ch ? ch.toUpperCase() : '?'
 }
 
 interface StatusBarProps {
@@ -43,9 +64,12 @@ export function StatusBar({ status, accent, formattedTime, user, onUserClick }: 
         )}
         {user && onUserClick && (
           <button className="user-btn" onClick={onUserClick} title="账号详情">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-            </svg>
+            <div
+              className="user-avatar-small"
+              style={{ background: getAvatarColor(user.displayName) }}
+            >
+              {getInitial(user.displayName)}
+            </div>
             {user.displayName}
           </button>
         )}

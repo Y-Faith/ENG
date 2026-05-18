@@ -90,7 +90,16 @@ app.onError((err, c) => {
   return c.json({ error: err.message || '服务器内部错误' }, 500)
 })
 
-app.get('/api/health', (c) => c.json({ ok: true, time: Date.now() }))
+app.get('/api/health', (c) => {
+  const hasKey = !!c.env.AI_API_KEY
+  const hasUrl = !!c.env.AI_API_URL
+  const model = c.env.AI_MODEL || 'not set'
+  return c.json({
+    ok: true,
+    time: Date.now(),
+    ai: { configured: hasKey && hasUrl, model, urlSet: hasUrl, keySet: hasKey },
+  })
+})
 
 app.post('/api/auth/register', async (c) => {
   const db = c.env.DB
@@ -239,45 +248,27 @@ app.post('/api/proxy', async (c) => {
   const apiUrl = c.env.AI_API_URL
   const apiModel = c.env.AI_MODEL
 
-  if (apiKey && apiUrl) {
-    try {
-      const baseUrl = apiUrl.replace(/\/+$/, '')
-      const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({ ...reqBody, model: apiModel || (reqBody as any).model }),
-      })
-
-      await incrementWeekUsage(db, userId)
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        return c.json({ error: errorText }, response.status as any)
-      }
-
-      const data = await response.json()
-      return c.json(data)
-    } catch (e: any) {
-      return c.json({ error: e.message || '请求失败' }, 502)
-    }
+  if (!apiKey || !apiUrl) {
+    return c.json({ error: '服务端未配置 AI API，请联系管理员' }, 503)
   }
 
   try {
-    const response = await fetch(targetUrl, {
+    const baseUrl = apiUrl.replace(/\/+$/, '')
+    const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
-      headers: reqHeaders,
-      body: JSON.stringify(reqBody),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ ...reqBody, model: apiModel || (reqBody as any).model }),
     })
-
-    await incrementWeekUsage(db, userId)
 
     if (!response.ok) {
       const errorText = await response.text()
-      return c.json({ error: errorText }, response.status as any)
+      return c.json({ error: `AI API 错误: ${errorText}` }, response.status as any)
     }
+
+    await incrementWeekUsage(db, userId)
 
     const data = await response.json()
     return c.json(data)
