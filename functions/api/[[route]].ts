@@ -107,6 +107,16 @@ app.post('/api/auth/register', async (c) => {
     return c.json({ error: '密码至少 6 位' }, 400)
   }
 
+  const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Real-IP') || 'unknown'
+  const oneMonthAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
+  const recentReg = await db
+    .prepare('SELECT id FROM registration_ips WHERE ip = ? AND registered_at > ?')
+    .bind(ip, oneMonthAgo)
+    .first()
+  if (recentReg) {
+    return c.json({ error: '该设备本月已注册过账号，每月限注册一个' }, 429)
+  }
+
   const existing = await db
     .prepare('SELECT id FROM users WHERE email = ?')
     .bind(email)
@@ -122,6 +132,11 @@ app.post('/api/auth/register', async (c) => {
       'INSERT INTO users (id, email, password_hash, display_name) VALUES (?, ?, ?, ?)'
     )
     .bind(id, email, hash, displayName || email.split('@')[0])
+    .run()
+
+  await db
+    .prepare('INSERT INTO registration_ips (ip) VALUES (?)')
+    .bind(ip)
     .run()
 
   const token = await sign(
@@ -331,6 +346,52 @@ app.get('/api/usage', async (c) => {
   const limit = parseInt(c.env.WEEKLY_LIMIT || String(DEFAULT_WEEKLY_LIMIT))
 
   return c.json({ weekUsage: usage, weekLimit: limit })
+})
+
+app.post('/api/auth/change-password', async (c) => {
+  const userId = await getUserId(c)
+  if (!userId) return c.json({ error: '请先登录' }, 401)
+
+  const db = c.env.DB
+  const { oldPassword, newPassword } = await c.req.json<{ oldPassword: string; newPassword: string }>()
+
+  if (!oldPassword || !newPassword) {
+    return c.json({ error: '请填写所有字段' }, 400)
+  }
+  if (newPassword.length < 6) {
+    return c.json({ error: '新密码至少 6 位' }, 400)
+  }
+
+  const user = await db
+    .prepare('SELECT password_hash FROM users WHERE id = ?')
+    .bind(userId)
+    .first<{ password_hash: string }>()
+  if (!user) return c.json({ error: '用户不存在' }, 404)
+
+  const oldHash = await hashPassword(oldPassword)
+  if (oldHash !== user.password_hash) {
+    return c.json({ error: '当前密码错误' }, 401)
+  }
+
+  const newHash = await hashPassword(newPassword)
+  await db
+    .prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+    .bind(newHash, userId)
+    .run()
+
+  return c.json({ ok: true })
+})
+
+app.post('/api/auth/delete-account', async (c) => {
+  const userId = await getUserId(c)
+  if (!userId) return c.json({ error: '请先登录' }, 401)
+
+  const db = c.env.DB
+  await db.prepare('DELETE FROM usage_logs WHERE user_id = ?').bind(userId).run()
+  await db.prepare('DELETE FROM conversations WHERE user_id = ?').bind(userId).run()
+  await db.prepare('DELETE FROM users WHERE id = ?').bind(userId).run()
+
+  return c.json({ ok: true })
 })
 
 app.get('/api/test', (c) => c.text('hono works'))

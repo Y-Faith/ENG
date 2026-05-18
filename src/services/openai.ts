@@ -45,26 +45,6 @@ export async function fetchChatCompletion(
     Authorization: `Bearer ${apiKey}`,
   }
 
-  if (import.meta.env.DEV) {
-    const response = await fetch('/api/proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        targetUrl,
-        headers: authHeaders,
-        reqBody: params,
-      }),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.error?.message || `API error: ${response.status}`)
-    }
-
-    const data = await response.json()
-    return data.choices[0].message.content.trim()
-  }
-
   const data = await proxyAI(targetUrl, authHeaders, params)
   return data.choices[0].message.content.trim()
 }

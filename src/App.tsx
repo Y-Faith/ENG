@@ -13,6 +13,7 @@ import { ControlPanel } from './components/ControlPanel'
 import { SettingsDrawer } from './components/SettingsDrawer'
 import { HistoryPage } from './components/HistoryPage'
 import LoginPage from './components/LoginPage'
+import { AccountDrawer } from './components/AccountDrawer'
 import * as api from './services/api'
 import './App.css'
 
@@ -48,6 +49,7 @@ function App() {
   const [revealedChars, setRevealedChars] = useState(0)
   const [user, setUser] = useState<api.UserInfo | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
+  const [showAccountDrawer, setShowAccountDrawer] = useState(false)
 
   const isProcessingRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
@@ -473,7 +475,11 @@ function App() {
   const handleLogout = useCallback(() => {
     api.clearToken()
     setUser(null)
-  }, [])
+    if (callStatus !== 'idle') {
+      handleHangup()
+    }
+    setMessages([])
+  }, [callStatus, handleHangup])
 
   if (!authChecked) {
     return (
@@ -500,7 +506,7 @@ function App() {
             accent={settings.accent}
             formattedTime={timer.formatted}
             user={user}
-            onLogout={handleLogout}
+            onUserClick={() => setShowAccountDrawer(true)}
           />
 
           <CallArea
@@ -616,6 +622,15 @@ function App() {
         onLogout={needsAuth() ? handleLogout : undefined}
         user={user ?? undefined}
       />
+
+      {showAccountDrawer && user && (
+        <AccountDrawer
+          user={user}
+          onClose={() => setShowAccountDrawer(false)}
+          onLogout={() => { setShowAccountDrawer(false); handleLogout() }}
+          onUserUpdate={(u) => setUser(u)}
+        />
+      )}
     </div>
   )
 }

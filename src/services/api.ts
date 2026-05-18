@@ -104,3 +104,11 @@ export function clearToken(): void {
 export function isLoggedIn(): boolean {
   return !!getToken()
 }
+
+export async function changePassword(oldPassword: string, newPassword: string): Promise<{ ok: boolean }> {
+  return apiCall('/api/auth/change-password', 'POST', { oldPassword, newPassword })
+}
+
+export async function deleteAccount(): Promise<{ ok: boolean }> {
+  return apiCall('/api/auth/delete-account', 'POST')
+}

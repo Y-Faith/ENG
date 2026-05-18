@@ -1329,6 +1329,200 @@ body {
   color: var(--text);
 }
 
+.user-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: 8px;
+  font-family: var(--font);
+}
+
+.user-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  color: var(--text);
+}
+
+.account-avatar {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+  color: var(--primary);
+}
+
+.account-info-card {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.account-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.account-info-label {
+  color: var(--text-secondary);
+}
+
+.account-info-value {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.account-usage-bar {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.account-usage-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+.account-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.account-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font);
+}
+
+.account-action-btn:hover {
+  background: var(--surface);
+}
+
+.account-action-btn.danger {
+  color: var(--danger);
+  border-color: rgba(255, 59, 48, 0.3);
+}
+
+.account-action-btn.danger:hover {
+  background: var(--danger);
+  color: var(--white);
+  border-color: var(--danger);
+}
+
+.account-action-btn.logout {
+  color: var(--text-secondary);
+}
+
+.account-action-btn.logout:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.account-form h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.account-back {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font);
+  text-align: left;
+}
+
+.account-form input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--white);
+  color: var(--text);
+  font-family: var(--font);
+  box-sizing: border-box;
+}
+
+.account-form input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.account-msg {
+  font-size: 13px;
+  margin: 0;
+  color: var(--danger);
+}
+
+.account-warning {
+  font-size: 13px;
+  color: var(--danger);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.account-submit {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--primary);
+  color: var(--white);
+  font-size: 14px;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: opacity 0.2s;
+}
+
+.account-submit:hover {
+  opacity: 0.9;
+}
+
+.account-submit.danger {
+  background: var(--danger);
+}
+
+.account-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .user-info-section {
   display: flex;
   flex-direction: column;
