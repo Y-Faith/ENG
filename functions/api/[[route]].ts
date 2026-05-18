@@ -234,7 +234,7 @@ app.post('/api/proxy', async (c) => {
     return c.json({ error: `今日用量已用完（${dailyLimit}次），明天再试` }, 429)
   }
 
-  const { targetUrl, headers: reqHeaders, reqBody } = await c.req.json<{
+  const { reqBody } = await c.req.json<{
     targetUrl: string
     headers: Record<string, string>
     reqBody: object
@@ -294,7 +294,7 @@ app.get('/api/history', async (c) => {
     }>()
 
   return c.json({
-    conversations: (results || []).map((r) => ({
+    conversations: (results || []).map((r: any) => ({
       ...r,
       messages: JSON.parse(r.messages),
     })),
@@ -513,7 +513,7 @@ app.post('/api/memories/compress', async (c) => {
     .all<{ id: string; content: string; category: string; importance: number; created_at: string }>()
 
   if (weekOldMemories.results && weekOldMemories.results.length > 0 && apiKey && apiUrl) {
-    const memoriesText = weekOldMemories.results.map((m) => `[${m.category}|${m.importance}] ${m.content}`).join('\n')
+    const memoriesText = weekOldMemories.results.map((m: any) => `[${m.category}|${m.importance}] ${m.content}`).join('\n')
 
     const compressPrompt = `You are a memory compression system. Given a list of memories about a person, compress them into fewer, more concise memories. Merge related memories. Remove duplicates. Keep the most important details.
 
