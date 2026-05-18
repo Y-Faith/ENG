@@ -22,7 +22,7 @@ const MINIMAL_ENCOURAGEMENTS = [
   "Tell me more",
 ]
 
-export function getGreeting(scene: Scene): string {
+export function getGreeting(_scene: Scene): string {
   return MINIMAL_FALLBACKS[Math.floor(Math.random() * MINIMAL_FALLBACKS.length)]
 }
 
