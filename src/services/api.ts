@@ -134,3 +134,7 @@ export async function extractMemories(messages: Array<{ role: string; content: s
 export async function compressMemories(): Promise<{ ok: boolean }> {
   return apiCall('/api/memories/compress', 'POST')
 }
+
+export async function deleteAllMemories(): Promise<{ ok: boolean }> {
+  return apiCall('/api/memories/delete-all', 'POST')
+}

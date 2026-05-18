@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { CallStatus, SpeakingState, Message, Accent, Difficulty, Scene, UserSettings, APIConfig } from './types'
 import { DEFAULT_SETTINGS } from './types'
-import { getGreeting, generateAIResponse, getCorrection, generateContextualResponse } from './data/scenarios'
+import { getGreeting, generateAIGreeting, generateAIResponse, getCorrection, generateContextualResponse } from './data/scenarios'
 import { useSpeechRecognition } from './hooks/useSpeechRecognition'
 import { useSpeechSynthesis } from './hooks/useSpeechSynthesis'
 import { useCallTimer } from './hooks/useCallTimer'
@@ -63,14 +63,51 @@ function App() {
     memoriesRef.current = userMemories
   }, [userMemories])
 
+  const loadMemoriesAsync = useCallback(() => {
+    const cached = localStorage.getItem('seuEngMemories')
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached)
+        if (Array.isArray(parsed)) {
+          setUserMemories(parsed)
+          memoriesRef.current = parsed
+        }
+      } catch {}
+    }
+
+    api.getMemories()
+      .then((res) => {
+        setUserMemories(res.memories)
+        memoriesRef.current = res.memories
+        localStorage.setItem('seuEngMemories', JSON.stringify(res.memories))
+      })
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     if (needsAuth()) {
       api.getMe()
         .then((res) => {
           setUser(res.user)
+          const cached = localStorage.getItem('seuEngMemories')
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached)
+              if (Array.isArray(parsed)) {
+                setUserMemories(parsed)
+                memoriesRef.current = parsed
+              }
+            } catch {}
+          }
           return api.getMemories()
         })
-        .then((res) => setUserMemories(res.memories))
+        .then((res) => {
+          if (res) {
+            setUserMemories(res.memories)
+            memoriesRef.current = res.memories
+            localStorage.setItem('seuEngMemories', JSON.stringify(res.memories))
+          }
+        })
         .catch(() => {})
         .finally(() => setAuthChecked(true))
     } else {
@@ -162,6 +199,13 @@ function App() {
         const { text: response, usedAI } = await generateAIResponse(userText, lastScene, difficulty, history, correctionEnabled, activeApi?.apiKey, activeApi?.apiUrl, activeApi?.apiModel, memoriesRef.current)
         setUsingAI(usedAI)
         addMessage('ai', response)
+
+        if (usedAI && needsAuth() && user) {
+          setUser({ ...user, dayUsage: user.dayUsage + 1 })
+          api.getUsage().then((u) => {
+            if (user) setUser({ ...user, dayUsage: u.dayUsage, dayLimit: u.dayLimit })
+          }).catch(() => {})
+        }
 
         setRevealedChars(0)
         startRevealInterval(response, settingsRef.current.speed)
@@ -285,7 +329,7 @@ function App() {
       audioViz.start()
       setSpeakingState('ai-speaking')
 
-      const { lastScene, difficulty, correctionEnabled, accent, speed } = settingsRef.current
+      const { lastScene, difficulty, accent, speed } = settingsRef.current
       const activeApi = getActiveApi()
 
       let greeting: string
@@ -293,19 +337,14 @@ function App() {
 
       if (activeApi?.apiKey) {
         try {
-          const result = await generateAIResponse(
-            '',
+          greeting = await generateAIGreeting(
             lastScene,
             difficulty,
-            [],
-            correctionEnabled,
             activeApi.apiKey,
             activeApi.apiUrl,
-            activeApi.apiModel,
-            memoriesRef.current
+            activeApi.apiModel
           )
-          greeting = result.text
-          usedAI = result.usedAI
+          usedAI = true
         } catch {
           greeting = getGreeting(lastScene)
         }
@@ -315,6 +354,10 @@ function App() {
 
       setUsingAI(usedAI)
       addMessage('ai', greeting)
+
+      if (needsAuth()) {
+        loadMemoriesAsync()
+      }
 
       setRevealedChars(0)
       startRevealInterval(greeting, speed)
@@ -365,7 +408,11 @@ function App() {
           }
           return null
         }).then((res) => {
-          if (res) setUserMemories(res.memories)
+          if (res) {
+            setUserMemories(res.memories)
+            memoriesRef.current = res.memories
+            localStorage.setItem('seuEngMemories', JSON.stringify(res.memories))
+          }
         }).catch(() => {})
 
         api.compressMemories().catch(() => {})
@@ -527,6 +574,7 @@ function App() {
           user={user}
           onClose={() => setCurrentView('call')}
           onLogout={() => { setCurrentView('call'); handleLogout() }}
+          onMemoriesChanged={loadMemoriesAsync}
         />
       ) : (
         <div className="phone-frame">

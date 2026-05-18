@@ -369,6 +369,19 @@ app.post('/api/auth/change-password', async (c) => {
   return c.json({ ok: true })
 })
 
+app.post('/api/memories/delete-all', async (c) => {
+  const userId = await getUserId(c)
+  if (!userId) return c.json({ error: '请先登录' }, 401)
+
+  const db = c.env.DB
+  await db
+    .prepare('DELETE FROM memories WHERE user_id = ?')
+    .bind(userId)
+    .run()
+
+  return c.json({ ok: true })
+})
+
 app.post('/api/auth/delete-account', async (c) => {
   const userId = await getUserId(c)
   if (!userId) return c.json({ error: '请先登录' }, 401)

@@ -16,9 +16,10 @@ export function useCallTimer(): UseCallTimerReturn {
   const startTimeRef = useRef<number>(0)
 
   const start = useCallback(() => {
-    startTimeRef.current = Date.now() - elapsed * 1000
+    startTimeRef.current = Date.now()
+    setElapsed(0)
     setIsRunning(true)
-  }, [elapsed])
+  }, [])
 
   const stop = useCallback(() => {
     setIsRunning(false)

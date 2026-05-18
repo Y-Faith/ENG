@@ -19,6 +19,8 @@ function buildSystemPrompt(scene: Scene, difficulty: Difficulty, correctionEnabl
       .map((m) => `- ${m.content}`)
       .join('\n')
     memorySection = `\n\nWhat you remember about this student:\n${memoryLines}\n- Use these memories naturally in conversation. For example, if you know their name, use it. If you know their hobbies, ask about them. Do NOT explicitly say "I remember that you..." — just weave it in naturally.`
+  } else {
+    memorySection = '\n\nYou have no prior memories of this student. Do NOT pretend to know anything about them — treat this as a first meeting.'
   }
 
   return `You are Emma, a top-tier English tutor with years of experience. You are talking to a student who wants to practice speaking English through ${sceneContext[scene]}.
