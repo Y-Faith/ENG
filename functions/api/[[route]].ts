@@ -90,9 +90,9 @@ app.onError((err, c) => {
   return c.json({ error: err.message || '服务器内部错误' }, 500)
 })
 
-app.get('/health', (c) => c.json({ ok: true, time: Date.now() }))
+app.get('/api/health', (c) => c.json({ ok: true, time: Date.now() }))
 
-app.post('/auth/register', async (c) => {
+app.post('/api/auth/register', async (c) => {
   const db = c.env.DB
   const { email, password, displayName } = await c.req.json<{
     email: string
@@ -133,7 +133,7 @@ app.post('/auth/register', async (c) => {
   return c.json({ token, user: { id, email, displayName: displayName || email.split('@')[0] } }, 201)
 })
 
-app.post('/auth/login', async (c) => {
+app.post('/api/auth/login', async (c) => {
   const db = c.env.DB
   const { email, password } = await c.req.json<{ email: string; password: string }>()
 
@@ -176,7 +176,7 @@ app.post('/auth/login', async (c) => {
   })
 })
 
-app.get('/auth/me', async (c) => {
+app.get('/api/auth/me', async (c) => {
   const userId = await getUserId(c)
   if (!userId) return c.json({ error: '未登录' }, 401)
 
@@ -202,7 +202,7 @@ app.get('/auth/me', async (c) => {
   })
 })
 
-app.post('/proxy', async (c) => {
+app.post('/api/proxy', async (c) => {
   const userId = await getUserId(c)
   if (!userId) return c.json({ error: '请先登录' }, 401)
 
@@ -271,7 +271,7 @@ app.post('/proxy', async (c) => {
   }
 })
 
-app.get('/history', async (c) => {
+app.get('/api/history', async (c) => {
   const userId = await getUserId(c)
   if (!userId) return c.json({ error: '请先登录' }, 401)
 
@@ -299,7 +299,7 @@ app.get('/history', async (c) => {
   })
 })
 
-app.post('/history', async (c) => {
+app.post('/api/history', async (c) => {
   const userId = await getUserId(c)
   if (!userId) return c.json({ error: '请先登录' }, 401)
 
@@ -322,7 +322,7 @@ app.post('/history', async (c) => {
   return c.json({ id }, 201)
 })
 
-app.get('/usage', async (c) => {
+app.get('/api/usage', async (c) => {
   const userId = await getUserId(c)
   if (!userId) return c.json({ error: '请先登录' }, 401)
 
@@ -333,6 +333,6 @@ app.get('/usage', async (c) => {
   return c.json({ weekUsage: usage, weekLimit: limit })
 })
 
-app.get('/test', (c) => c.text('hono works'))
+app.get('/api/test', (c) => c.text('hono works'))
 
 export const onRequest = handle(app)
