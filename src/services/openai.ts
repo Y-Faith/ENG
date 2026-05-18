@@ -42,31 +42,7 @@ interface FetchParams {
   max_tokens: number
 }
 
-export async function fetchDirect(
-  apiKey: string,
-  apiUrl: string,
-  params: FetchParams
-): Promise<string> {
-  const baseUrl = apiUrl.replace(/\/+$/, '')
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(params),
-  })
-
-  if (!response.ok) {
-    const err = await response.text()
-    throw new Error(`AI API 错误 (${response.status}): ${err}`)
-  }
-
-  const data = await response.json()
-  return data.choices[0].message.content.trim()
-}
-
-export async function fetchViaProxy(
+export async function fetchChatCompletion(
   apiKey: string,
   apiUrl: string,
   params: FetchParams
@@ -109,7 +85,7 @@ export async function getAIResponse(
 
   messages.push({ role: 'user', content: userMessage })
 
-  return fetchDirect(apiKey, apiUrl, {
+  return fetchChatCompletion(apiKey, apiUrl, {
     model: apiModel,
     messages,
     temperature: 0.7,
@@ -140,7 +116,7 @@ export async function getEncouragement(
 
   messages.push({ role: 'user', content: `[The student is still speaking, this is what they've said so far]: ${partialText}` })
 
-  return fetchDirect(apiKey, apiUrl, {
+  return fetchChatCompletion(apiKey, apiUrl, {
     model: apiModel,
     messages,
     temperature: 0.9,

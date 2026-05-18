@@ -76,21 +76,6 @@ export async function proxyAI(
   return apiCall('/api/proxy', 'POST', { targetUrl, headers: reqHeaders, reqBody })
 }
 
-export interface AIConfig {
-  configured: boolean
-  apiKey?: string
-  apiUrl?: string
-  apiModel?: string
-}
-
-export async function getAIConfig(): Promise<AIConfig> {
-  return apiCall('/api/ai-config')
-}
-
-export async function reportUsage(): Promise<{ ok: boolean; weekUsage: number; weekLimit: number }> {
-  return apiCall('/api/usage/report', 'POST')
-}
-
 export async function getHistory(): Promise<{ conversations: Conversation[] }> {
   return apiCall('/api/history')
 }

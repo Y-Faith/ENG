@@ -101,41 +101,6 @@ app.get('/api/health', (c) => {
   })
 })
 
-app.get('/api/ai-config', async (c) => {
-  const userId = await getUserId(c)
-  if (!userId) return c.json({ error: '请先登录' }, 401)
-
-  const apiKey = c.env.AI_API_KEY
-  const apiUrl = c.env.AI_API_URL
-  const apiModel = c.env.AI_MODEL
-
-  if (!apiKey || !apiUrl) {
-    return c.json({ configured: false })
-  }
-
-  return c.json({
-    configured: true,
-    apiKey,
-    apiUrl,
-    apiModel: apiModel || 'gpt-4o-mini',
-  })
-})
-
-app.post('/api/usage/report', async (c) => {
-  const userId = await getUserId(c)
-  if (!userId) return c.json({ error: '请先登录' }, 401)
-
-  const db = c.env.DB
-  const weeklyLimit = parseInt(c.env.WEEKLY_LIMIT || String(DEFAULT_WEEKLY_LIMIT))
-  const usage = await getWeekUsage(db, userId)
-  if (usage >= weeklyLimit) {
-    return c.json({ error: `本周用量已用完（${weeklyLimit}次）` }, 429)
-  }
-
-  await incrementWeekUsage(db, userId)
-  return c.json({ ok: true, weekUsage: usage + 1, weekLimit: weeklyLimit })
-})
-
 app.post('/api/auth/register', async (c) => {
   const db = c.env.DB
   const { email, password, displayName } = await c.req.json<{
