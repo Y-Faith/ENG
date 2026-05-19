@@ -2,9 +2,9 @@ import type { Scene, Difficulty, Message } from '../types'
 import { fetchChatCompletion, getAIResponse, getEncouragement } from '../services/openai'
 
 const sceneGreetingPrompts: Record<Scene, string> = {
-  daily: 'Greet the student warmly and ask how they are doing. Keep it to 1-2 sentences.',
-  business: 'Greet the student professionally and ask what business topic they would like to practice today. Keep it to 1-2 sentences.',
-  travel: 'Greet the student and ask where they would like to travel or what travel scenario they want to practice. Keep it to 1-2 sentences.',
+  daily: 'This is your FIRST time meeting this student. Introduce yourself as Emma and ask how they are doing. Do NOT say "again" or imply you have met before. Keep it to 1-2 sentences.',
+  business: 'This is your FIRST time meeting this student. Introduce yourself as Emma and ask what business topic they would like to practice today. Do NOT say "again" or imply you have met before. Keep it to 1-2 sentences.',
+  travel: 'This is your FIRST time meeting this student. Introduce yourself as Emma and ask where they would like to travel or what travel scenario they want to practice. Do NOT say "again" or imply you have met before. Keep it to 1-2 sentences.',
 }
 
 const MINIMAL_FALLBACKS = [

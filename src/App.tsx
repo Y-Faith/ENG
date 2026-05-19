@@ -243,7 +243,7 @@ function App() {
       isProcessingRef.current = false
       if (callStatusRef.current === 'connected') {
         setSpeakingState('listening')
-        startRecognitionRef.current()
+        setTimeout(() => startRecognitionRef.current(), 500)
       }
     },
     [addMessage, speechSynth, getActiveApi]
@@ -373,13 +373,13 @@ function App() {
           stopRevealInterval()
           setRevealedChars(greeting.length)
           setSpeakingState('listening')
-          startRecognition()
+          setTimeout(() => startRecognition(), 500)
         })
         .catch(() => {
           stopRevealInterval()
           setRevealedChars(greeting.length)
           setSpeakingState('listening')
-          startRecognition()
+          setTimeout(() => startRecognition(), 500)
         })
     }
 
