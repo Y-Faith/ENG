@@ -226,6 +226,9 @@ export function useSpeechRecognition({
 
   const stopListening = useCallback(() => {
     clearTimers()
+    submittedRef.current = true
+    transcriptRef.current = ''
+    setTranscript('')
     if (recognitionRef.current) {
       recognitionRef.current.abort()
       recognitionRef.current = null

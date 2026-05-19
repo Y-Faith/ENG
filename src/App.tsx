@@ -174,6 +174,11 @@ function App() {
       const elapsed = (Date.now() - start) / 1000
       const target = Math.min(Math.floor(elapsed * charsPerSec), text.length)
       setRevealedChars(target)
+      if (target >= text.length) {
+        clearInterval(revealIntervalRef.current!)
+        revealIntervalRef.current = null
+        setRevealingMessageId(null)
+      }
     }, 30)
   }, [])
 
@@ -225,6 +230,7 @@ function App() {
         // Check if call was aborted during speech
         if (callAbortedRef.current) return
 
+        // Ensure reveal completes even if speech ended early
         stopRevealInterval()
         setRevealedChars(response.length)
         setRevealingMessageId(null)
@@ -244,6 +250,18 @@ function App() {
         setRevealedChars(fallback.length)
         setRevealingMessageId(null)
       }
+
+      // Wait for reveal to finish before restarting recognition
+      await new Promise<void>((resolve) => {
+        const check = () => {
+          if (!revealIntervalRef.current) {
+            resolve()
+          } else {
+            setTimeout(check, 50)
+          }
+        }
+        check()
+      })
 
       isProcessingRef.current = false
       if (callStatusRef.current === 'connected') {
@@ -287,12 +305,14 @@ function App() {
 
       try {
         const response = await generateContextualResponse(finalText, history, lastScene, activeApi?.apiKey, activeApi?.apiUrl, activeApi?.apiModel)
-        addMessage('ai', response)
         setRevealedChars(0)
+        const aiMsg = addMessage('ai', response)
+        setRevealingMessageId(aiMsg.id)
         startRevealInterval(response, speed)
         await speechSynth.speak(response, accent, speed).catch(() => {})
         stopRevealInterval()
         setRevealedChars(response.length)
+        setRevealingMessageId(null)
       } catch {
         // silent fail
       }
@@ -370,24 +390,27 @@ function App() {
       const usedAI = !!activeApi?.apiKey
 
       setUsingAI(usedAI)
-      addMessage('ai', greeting)
+      const greetMsg = addMessage('ai', greeting)
 
       if (needsAuth()) {
         loadMemoriesAsync()
       }
 
       setRevealedChars(0)
+      setRevealingMessageId(greetMsg.id)
       startRevealInterval(greeting, speed)
       speechSynth.speak(greeting, accent, speed)
         .then(() => {
           stopRevealInterval()
           setRevealedChars(greeting.length)
+          setRevealingMessageId(null)
           setSpeakingState('listening')
           setTimeout(() => startRecognition(), 500)
         })
         .catch(() => {
           stopRevealInterval()
           setRevealedChars(greeting.length)
+          setRevealingMessageId(null)
           setSpeakingState('listening')
           setTimeout(() => startRecognition(), 500)
         })
