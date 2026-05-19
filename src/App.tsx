@@ -319,7 +319,18 @@ function App() {
     isProcessingRef.current = false
 
     const initCall = async () => {
-      await new Promise<void>((r) => setTimeout(r, 1500))
+      const { lastScene, difficulty, accent, speed } = settingsRef.current
+      const activeApi = getActiveApi()
+
+      // Start AI greeting request in parallel with dialing delay
+      const greetingPromise = activeApi?.apiKey
+        ? generateAIGreeting(lastScene, difficulty, activeApi.apiKey, activeApi.apiUrl, activeApi.apiModel)
+            .catch(() => getGreeting(lastScene))
+        : Promise.resolve(getGreeting(lastScene))
+
+      const delayPromise = new Promise<void>((r) => setTimeout(r, 1500))
+
+      const [, greeting] = await Promise.all([delayPromise, greetingPromise])
 
       if (callStatusRef.current !== 'dialing') return
 
@@ -329,28 +340,7 @@ function App() {
       audioViz.start()
       setSpeakingState('ai-speaking')
 
-      const { lastScene, difficulty, accent, speed } = settingsRef.current
-      const activeApi = getActiveApi()
-
-      let greeting: string
-      let usedAI = false
-
-      if (activeApi?.apiKey) {
-        try {
-          greeting = await generateAIGreeting(
-            lastScene,
-            difficulty,
-            activeApi.apiKey,
-            activeApi.apiUrl,
-            activeApi.apiModel
-          )
-          usedAI = true
-        } catch {
-          greeting = getGreeting(lastScene)
-        }
-      } else {
-        greeting = getGreeting(lastScene)
-      }
+      const usedAI = !!activeApi?.apiKey
 
       setUsingAI(usedAI)
       addMessage('ai', greeting)

@@ -1,6 +1,10 @@
 import { useRef, useCallback, useState } from 'react'
 import type { Accent } from '../types'
 
+function stripEmoji(text: string): string {
+  return text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '')
+}
+
 const ACCENT_VOICES: Record<Accent, { lang: string; namePattern: string }> = {
   american: { lang: 'en-US', namePattern: 'en-US|en_US|english.*us|samantha|zira|david|mark' },
   british: { lang: 'en-GB', namePattern: 'en-GB|en_GB|english.*uk|daniel|hazel|british' },
@@ -50,7 +54,13 @@ export function useSpeechSynthesis(options?: UseSpeechSynthesisOptions): UseSpee
 
       window.speechSynthesis.cancel()
 
-      const utterance = new SpeechSynthesisUtterance(text)
+      const cleanText = stripEmoji(text)
+      if (!cleanText.trim()) {
+        resolve()
+        return
+      }
+
+      const utterance = new SpeechSynthesisUtterance(cleanText)
       utteranceRef.current = utterance
 
       const voice = findVoice(accent)
