@@ -334,6 +334,7 @@ function App() {
     },
     onPause: handlePause,
     listeningMode: settings.listeningModeEnabled,
+    getVolume: () => audioViz.decibels,
   })
 
   startRecognitionRef.current = startRecognition

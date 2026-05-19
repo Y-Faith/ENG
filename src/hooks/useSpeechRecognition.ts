@@ -54,6 +54,7 @@ interface UseSpeechRecognitionOptions {
   onSpeechEnd?: () => void
   onPause?: (text: string) => void
   listeningMode?: boolean
+  getVolume?: () => number
 }
 
 interface UseSpeechRecognitionReturn {
@@ -66,8 +67,8 @@ interface UseSpeechRecognitionReturn {
   error: string | null
 }
 
-const SUBMIT_PAUSE_MS = 3000
-const NORMAL_SUBMIT_MS = 1500
+const SUBMIT_PAUSE_MS = 2500
+const NORMAL_SUBMIT_MS = 1200
 
 export function useSpeechRecognition({
   onResult,
@@ -75,6 +76,7 @@ export function useSpeechRecognition({
   onSpeechEnd,
   onPause,
   listeningMode = false,
+  getVolume,
 }: UseSpeechRecognitionOptions): UseSpeechRecognitionReturn {
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const [isListening, setIsListening] = useState(false)
@@ -155,8 +157,6 @@ export function useSpeechRecognition({
     }
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      clearTimers()
-
       let interimText = ''
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -166,6 +166,17 @@ export function useSpeechRecognition({
 
       transcriptRef.current = interimText
       setTranscript(interimText)
+
+      // Check volume: if too quiet, treat as noise and don't reset silence timer
+      const db = getVolume?.() ?? 0
+      const isQuiet = db < -35 // below -35dB is likely background noise
+
+      if (isQuiet && silenceTimerRef.current) {
+        // Keep the existing timer running, don't reset
+        return
+      }
+
+      clearTimers()
 
       if (listeningModeRef.current) {
         silenceTimerRef.current = setTimeout(() => {
