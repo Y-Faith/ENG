@@ -4,9 +4,10 @@ import type { Message } from '../types'
 interface ConversationBubblesProps {
   messages: Message[]
   revealedChars: number
+  revealingMessageId: string | null
 }
 
-export function ConversationBubbles({ messages, revealedChars }: ConversationBubblesProps) {
+export function ConversationBubbles({ messages, revealedChars, revealingMessageId }: ConversationBubblesProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -17,12 +18,12 @@ export function ConversationBubbles({ messages, revealedChars }: ConversationBub
 
   return (
     <div className="conversation-bubbles">
-      {visibleMessages.map((msg, idx) => {
-        const isLatestAI = msg.role === 'ai' && idx === visibleMessages.length - 1
-        const displayContent = isLatestAI
+      {visibleMessages.map((msg) => {
+        const isRevealing = msg.id === revealingMessageId
+        const displayContent = isRevealing
           ? msg.content.slice(0, revealedChars)
           : msg.content
-        const isPartial = isLatestAI && revealedChars < msg.content.length
+        const isPartial = isRevealing && revealedChars < msg.content.length
 
         return (
           <div key={msg.id} className={`bubble ${msg.role}`}>

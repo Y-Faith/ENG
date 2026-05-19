@@ -47,6 +47,7 @@ function App() {
   const [textInput, setTextInput] = useState('')
   const [usingAI, setUsingAI] = useState(false)
   const [revealedChars, setRevealedChars] = useState(0)
+  const [revealingMessageId, setRevealingMessageId] = useState<string | null>(null)
   const [user, setUser] = useState<api.UserInfo | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
   const [userMemories, setUserMemories] = useState<api.Memory[]>([])
@@ -140,7 +141,7 @@ function App() {
     audioViz.setState(speakingState)
   }, [speakingState, audioViz])
 
-  const addMessage = useCallback((role: 'user' | 'ai', content: string, correction?: string) => {
+  const addMessage = useCallback((role: 'user' | 'ai', content: string, correction?: string): Message => {
     const msg: Message = {
       id: generateId(),
       role,
@@ -208,7 +209,8 @@ function App() {
 
         setUsingAI(usedAI)
         setRevealedChars(0)
-        addMessage('ai', response)
+        const aiMsg = addMessage('ai', response)
+        setRevealingMessageId(aiMsg.id)
 
         if (usedAI && needsAuth() && user) {
           setUser({ ...user, dayUsage: user.dayUsage + 1 })
@@ -225,12 +227,14 @@ function App() {
 
         stopRevealInterval()
         setRevealedChars(response.length)
+        setRevealingMessageId(null)
       } catch (err) {
         if (callAbortedRef.current) return
 
         const fallback = "Sorry, I'm having trouble connecting. Could you say that again?"
         setRevealedChars(0)
-        addMessage('ai', fallback)
+        const fbMsg = addMessage('ai', fallback)
+        setRevealingMessageId(fbMsg.id)
         startRevealInterval(fallback, settingsRef.current.speed)
         await speechSynth.speak(fallback, settingsRef.current.accent, settingsRef.current.speed).catch(() => {})
 
@@ -238,6 +242,7 @@ function App() {
 
         stopRevealInterval()
         setRevealedChars(fallback.length)
+        setRevealingMessageId(null)
       }
 
       isProcessingRef.current = false
@@ -312,7 +317,11 @@ function App() {
     error: recognitionError,
   } = useSpeechRecognition({
     onResult: handleSpeechResult,
-    onSpeechStart: () => setSpeakingState('user-speaking'),
+    onSpeechStart: () => {
+      if (!isProcessingRef.current) {
+        setSpeakingState('user-speaking')
+      }
+    },
     onSpeechEnd: () => {
       if (!isProcessingRef.current) {
         setSpeakingState('listening')
@@ -601,6 +610,7 @@ function App() {
             levels={audioViz.levels}
             decibels={audioViz.decibels}
             revealedChars={revealedChars}
+            revealingMessageId={revealingMessageId}
             onHangup={handleHangup}
             onCall={handleCall}
           />

@@ -66,8 +66,8 @@ interface UseSpeechRecognitionReturn {
   error: string | null
 }
 
-const SUBMIT_PAUSE_MS = 2500
-const NORMAL_SUBMIT_MS = 1200
+const SUBMIT_PAUSE_MS = 3000
+const NORMAL_SUBMIT_MS = 1500
 
 export function useSpeechRecognition({
   onResult,
