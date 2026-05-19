@@ -207,6 +207,7 @@ function App() {
         if (callAbortedRef.current) return
 
         setUsingAI(usedAI)
+        setRevealedChars(0)
         addMessage('ai', response)
 
         if (usedAI && needsAuth() && user) {
@@ -216,7 +217,6 @@ function App() {
           }).catch(() => {})
         }
 
-        setRevealedChars(0)
         startRevealInterval(response, settingsRef.current.speed)
         await speechSynth.speak(response, settingsRef.current.accent, settingsRef.current.speed).catch(() => {})
 
@@ -229,8 +229,8 @@ function App() {
         if (callAbortedRef.current) return
 
         const fallback = "Sorry, I'm having trouble connecting. Could you say that again?"
-        addMessage('ai', fallback)
         setRevealedChars(0)
+        addMessage('ai', fallback)
         startRevealInterval(fallback, settingsRef.current.speed)
         await speechSynth.speak(fallback, settingsRef.current.accent, settingsRef.current.speed).catch(() => {})
 

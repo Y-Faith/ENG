@@ -66,8 +66,8 @@ interface UseSpeechRecognitionReturn {
   error: string | null
 }
 
-const SUBMIT_PAUSE_MS = 2000
-const NORMAL_SUBMIT_MS = 2000
+const SUBMIT_PAUSE_MS = 2500
+const NORMAL_SUBMIT_MS = 1200
 
 export function useSpeechRecognition({
   onResult,
@@ -84,6 +84,7 @@ export function useSpeechRecognition({
 
   const transcriptRef = useRef('')
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const submittedRef = useRef(false)
   const onResultRef = useRef(onResult)
   const onSpeechStartRef = useRef(onSpeechStart)
   const onSpeechEndRef = useRef(onSpeechEnd)
@@ -105,6 +106,7 @@ export function useSpeechRecognition({
 
   const submitAndStop = useCallback(() => {
     clearTimers()
+    submittedRef.current = true
     if (recognitionRef.current) {
       recognitionRef.current.abort()
       recognitionRef.current = null
@@ -146,6 +148,7 @@ export function useSpeechRecognition({
     recognition.onstart = () => {
       setIsListening(true)
       setError(null)
+      submittedRef.current = false
       transcriptRef.current = ''
       setTranscript('')
       onSpeechStartRef.current?.()
@@ -189,6 +192,12 @@ export function useSpeechRecognition({
     recognition.onend = () => {
       clearTimers()
       setIsListening(false)
+
+      // Skip if already submitted via submitAndStop
+      if (submittedRef.current) {
+        submittedRef.current = false
+        return
+      }
 
       const text = transcriptRef.current.trim()
       if (text) {

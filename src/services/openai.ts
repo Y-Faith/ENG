@@ -27,7 +27,7 @@ function buildSystemPrompt(scene: Scene, difficulty: Difficulty, correctionEnabl
 
 Your role:
 - Have a natural, friendly conversation with the student
-- Keep your responses concise (2-4 sentences) so the student can practice speaking
+- Match your response length to the student's input: if they say something short (1-2 sentences), reply briefly (1-2 sentences); if they say more, you can respond with more detail. Keep it conversational — never give long lectures
 - Ask follow-up questions to keep the conversation going
 ${correctionInstruction}
 - Adapt your vocabulary to ${difficulty} level
@@ -91,7 +91,7 @@ export async function getAIResponse(
     model: apiModel,
     messages,
     temperature: 0.7,
-    max_tokens: 150,
+    max_tokens: 100,
   })
 }
 
