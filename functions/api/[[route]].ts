@@ -30,7 +30,12 @@ function uid(): string {
 }
 
 function getDayKey(): string {
-  return new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const bj = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }))
+  const y = bj.getFullYear()
+  const m = String(bj.getMonth() + 1).padStart(2, '0')
+  const d = String(bj.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 async function hashPassword(password: string): Promise<string> {
