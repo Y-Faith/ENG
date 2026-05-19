@@ -162,47 +162,41 @@ function App() {
     return null
   }, [user])
 
-  const speechSynth = useSpeechSynthesis({
-    onWord: (charIndex: number) => {
-      // Calibrate speed from boundary events for smooth constant-rate reveal
-      const now = Date.now()
-      const elapsed = (now - revealStartRef.current) / 1000
-      if (elapsed > 0.1 && charIndex > 0) {
-        revealRateRef.current = charIndex / elapsed
-      }
-    },
-  })
+  const speechSynth = useSpeechSynthesis({})
 
-  const revealIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const revealStartRef = useRef(0)
-  const revealRateRef = useRef(0)
+  const revealTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const startRevealWithFallback = useCallback((text: string, speed: number) => {
-    if (revealIntervalRef.current) clearInterval(revealIntervalRef.current)
-    revealStartRef.current = Date.now()
-    revealRateRef.current = 14 * speed // initial fallback rate (chars/sec)
+  const startReveal = useCallback((text: string, speed: number) => {
+    if (revealTimerRef.current) clearInterval(revealTimerRef.current)
+    const charsPerTick = 1
+    const tickMs = Math.max(30, Math.round(1000 / (14 * speed)))
+    let pos = 0
 
-    revealIntervalRef.current = setInterval(() => {
-      const elapsed = (Date.now() - revealStartRef.current) / 1000
-      const target = Math.min(Math.floor(elapsed * revealRateRef.current), text.length)
-      setRevealedChars((prev) => {
-        if (target <= prev) return prev // never go backwards
-        return target
-      })
-      if (target >= text.length) {
-        clearInterval(revealIntervalRef.current!)
-        revealIntervalRef.current = null
+    revealTimerRef.current = setInterval(() => {
+      pos += charsPerTick
+      if (pos >= text.length) {
+        setRevealedChars(text.length)
+        clearInterval(revealTimerRef.current!)
+        revealTimerRef.current = null
         setRevealingMessageId(null)
+        return
       }
-    }, 30)
+      setRevealedChars(pos)
+    }, tickMs)
   }, [])
 
-  const stopRevealInterval = useCallback(() => {
-    if (revealIntervalRef.current) {
-      clearInterval(revealIntervalRef.current)
-      revealIntervalRef.current = null
+  const stopReveal = useCallback(() => {
+    if (revealTimerRef.current) {
+      clearInterval(revealTimerRef.current)
+      revealTimerRef.current = null
     }
   }, [])
+
+  const completeReveal = useCallback((text: string) => {
+    stopReveal()
+    setRevealedChars(text.length)
+    setRevealingMessageId(null)
+  }, [stopReveal])
 
   const processAIResponse = useCallback(
     async (userText: string) => {
@@ -239,15 +233,13 @@ function App() {
           }).catch(() => {})
         }
 
-        startRevealWithFallback(response, settingsRef.current.speed)
+        startReveal(response, settingsRef.current.speed)
         await speechSynth.speak(response, settingsRef.current.accent, settingsRef.current.speed).catch(() => {})
 
         // Check if call was aborted during speech
         if (callAbortedRef.current) return
 
-        // onWord(text.length) already called on speech end, just clean up
-        stopRevealInterval()
-        setRevealingMessageId(null)
+        completeReveal(response)
       } catch (err) {
         if (callAbortedRef.current) return
 
@@ -255,13 +247,12 @@ function App() {
         setRevealedChars(0)
         const fbMsg = addMessage('ai', fallback)
         setRevealingMessageId(fbMsg.id)
-        startRevealWithFallback(fallback, settingsRef.current.speed)
+        startReveal(fallback, settingsRef.current.speed)
         await speechSynth.speak(fallback, settingsRef.current.accent, settingsRef.current.speed).catch(() => {})
 
         if (callAbortedRef.current) return
 
-        stopRevealInterval()
-        setRevealingMessageId(null)
+        completeReveal(fallback)
       }
 
       isProcessingRef.current = false
@@ -309,10 +300,9 @@ function App() {
         setRevealedChars(0)
         const aiMsg = addMessage('ai', response)
         setRevealingMessageId(aiMsg.id)
-        startRevealWithFallback(response, speed)
+        startReveal(response, speed)
         await speechSynth.speak(response, accent, speed).catch(() => {})
-        stopRevealInterval()
-        setRevealingMessageId(null)
+        completeReveal(response)
       } catch {
         // silent fail
       }
@@ -398,17 +388,9 @@ function App() {
 
       setRevealedChars(0)
       setRevealingMessageId(greetMsg.id)
-      startRevealWithFallback(greeting, speed)
-      speechSynth.speak(greeting, accent, speed)
-        .then(() => {
-          stopRevealInterval()
-          setRevealingMessageId(null)
-          setSpeakingState('listening')
-          setTimeout(() => startRecognition(), 500)
-        })
-        .catch(() => {
-          stopRevealInterval()
-          setRevealingMessageId(null)
+      startReveal(greeting, speed)
+      speechSynth.speak(greeting, accent, speed).finally(() => {
+          completeReveal(greeting)
           setSpeakingState('listening')
           setTimeout(() => startRecognition(), 500)
         })
@@ -421,7 +403,7 @@ function App() {
     stopRecognition()
     audioViz.stop()
     speechSynth.stop()
-    stopRevealInterval()
+    stopReveal()
     timer.stop()
     setCallStatus('ended')
     setSpeakingState('idle')
@@ -474,7 +456,7 @@ function App() {
         // storage unavailable
       }
     }
-  }, [stopRecognition, speechSynth, timer, audioViz, stopRevealInterval, user])
+  }, [stopRecognition, speechSynth, timer, audioViz, stopReveal, user])
 
   const handleToggleMute = useCallback(() => {
     setIsMuted((prev) => {
