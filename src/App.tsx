@@ -162,33 +162,48 @@ function App() {
     return null
   }, [user])
 
-  const speechSynth = useSpeechSynthesis({})
+  const revealOnSpeechRef = useRef<() => void>(() => {})
 
-  const revealTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const speechSynth = useSpeechSynthesis({
+    onStart: () => revealOnSpeechRef.current()
+  })
+
+  const revealRafRef = useRef<number | null>(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
   const startReveal = useCallback((text: string, speed: number) => {
-    if (revealTimerRef.current) clearInterval(revealTimerRef.current)
-    const msPerChar = Math.max(30, Math.round(1000 / (14 * speed)))
-    const startTime = Date.now()
+    if (revealRafRef.current) cancelAnimationFrame(revealRafRef.current)
+    const msPerChar = Math.max(25, Math.round(1000 / (16 * speed)))
+    const startTime = performance.now()
+    let lastPos = 0
 
-    revealTimerRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTime
-      const pos = Math.floor(elapsed / msPerChar)
+    const tick = () => {
+      if (!mountedRef.current) return
+      const elapsed = performance.now() - startTime
+      const pos = Math.min(Math.floor(elapsed / msPerChar), text.length)
+      if (pos !== lastPos) {
+        lastPos = pos
+        setRevealedChars(pos)
+      }
       if (pos >= text.length) {
-        setRevealedChars(text.length)
-        clearInterval(revealTimerRef.current!)
-        revealTimerRef.current = null
+        revealRafRef.current = null
         setRevealingMessageId(null)
         return
       }
-      setRevealedChars(pos)
-    }, 30)
+      revealRafRef.current = requestAnimationFrame(tick)
+    }
+    revealRafRef.current = requestAnimationFrame(tick)
   }, [])
 
   const stopReveal = useCallback(() => {
-    if (revealTimerRef.current) {
-      clearInterval(revealTimerRef.current)
-      revealTimerRef.current = null
+    if (revealRafRef.current) {
+      cancelAnimationFrame(revealRafRef.current)
+      revealRafRef.current = null
     }
   }, [])
 
@@ -233,8 +248,11 @@ function App() {
           }).catch(() => {})
         }
 
-        startReveal(response, settingsRef.current.speed)
+        revealOnSpeechRef.current = () => startReveal(response, settingsRef.current.speed)
+        // Fallback: if speech onstart never fires, start reveal after 500ms
+        const fallbackTimer = setTimeout(() => startReveal(response, settingsRef.current.speed), 500)
         await speechSynth.speak(response, settingsRef.current.accent, settingsRef.current.speed).catch(() => {})
+        clearTimeout(fallbackTimer)
 
         // Check if call was aborted during speech
         if (callAbortedRef.current) return
@@ -247,8 +265,10 @@ function App() {
         setRevealedChars(0)
         const fbMsg = addMessage('ai', fallback)
         setRevealingMessageId(fbMsg.id)
-        startReveal(fallback, settingsRef.current.speed)
+        revealOnSpeechRef.current = () => startReveal(fallback, settingsRef.current.speed)
+        const fallbackTimer2 = setTimeout(() => startReveal(fallback, settingsRef.current.speed), 500)
         await speechSynth.speak(fallback, settingsRef.current.accent, settingsRef.current.speed).catch(() => {})
+        clearTimeout(fallbackTimer2)
 
         if (callAbortedRef.current) return
 
@@ -300,8 +320,10 @@ function App() {
         setRevealedChars(0)
         const aiMsg = addMessage('ai', response)
         setRevealingMessageId(aiMsg.id)
-        startReveal(response, speed)
+        revealOnSpeechRef.current = () => startReveal(response, speed)
+        const fallbackTimer = setTimeout(() => startReveal(response, speed), 500)
         await speechSynth.speak(response, accent, speed).catch(() => {})
+        clearTimeout(fallbackTimer)
         completeReveal(response)
       } catch {
         // silent fail
@@ -388,8 +410,12 @@ function App() {
 
       setRevealedChars(0)
       setRevealingMessageId(greetMsg.id)
-      startReveal(greeting, speed)
+      revealOnSpeechRef.current = () => startReveal(greeting, speed)
+      const greetFallback = setTimeout(() => {
+        startReveal(greeting, speed)
+      }, 500)
       speechSynth.speak(greeting, accent, speed).finally(() => {
+          clearTimeout(greetFallback)
           completeReveal(greeting)
           setSpeakingState('listening')
           setTimeout(() => startRecognition(), 500)

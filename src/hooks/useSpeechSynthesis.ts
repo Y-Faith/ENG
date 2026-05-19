@@ -13,6 +13,7 @@ const ACCENT_VOICES: Record<Accent, { lang: string; namePattern: string }> = {
 
 interface UseSpeechSynthesisOptions {
   onWord?: (charIndex: number) => void
+  onStart?: () => void
 }
 
 interface UseSpeechSynthesisReturn {
@@ -28,6 +29,8 @@ export function useSpeechSynthesis(options?: UseSpeechSynthesisOptions): UseSpee
   const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window
   const onWordRef = useRef(options?.onWord)
   onWordRef.current = options?.onWord
+  const onStartRef = useRef(options?.onStart)
+  onStartRef.current = options?.onStart
 
   const findVoice = useCallback((accent: Accent): SpeechSynthesisVoice | null => {
     const voices = window.speechSynthesis.getVoices()
@@ -85,6 +88,7 @@ export function useSpeechSynthesis(options?: UseSpeechSynthesisOptions): UseSpee
       utterance.onstart = () => {
         setIsSpeaking(true)
         charPos = 0
+        onStartRef.current?.()
       }
 
       utterance.onboundary = (event) => {
