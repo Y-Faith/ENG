@@ -177,7 +177,7 @@ function App() {
   }, [])
 
   const startReveal = useCallback((text: string, speed: number) => {
-    if (revealRafRef.current) cancelAnimationFrame(revealRafRef.current)
+    if (revealRafRef.current) return
     const msPerChar = Math.max(25, Math.round(1000 / (16 * speed)))
     const startTime = performance.now()
     let lastPos = 0
