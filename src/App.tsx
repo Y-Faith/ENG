@@ -162,12 +162,25 @@ function App() {
     return null
   }, [user])
 
-  const speechSynth = useSpeechSynthesis({})
+  const speechSynth = useSpeechSynthesis({
+    onWord: (charIndex: number) => {
+      setRevealedChars(charIndex)
+      // Clear fallback timer if onboundary is working
+      if (revealIntervalRef.current) {
+        clearInterval(revealIntervalRef.current)
+        revealIntervalRef.current = null
+      }
+    },
+  })
 
   const revealIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const boundaryFiredRef = useRef(false)
 
-  const startRevealInterval = useCallback((text: string, speed: number) => {
+  const startRevealWithFallback = useCallback((text: string, speed: number) => {
     if (revealIntervalRef.current) clearInterval(revealIntervalRef.current)
+    boundaryFiredRef.current = false
+
+    // Start fallback timer - will be cleared if onboundary fires
     const charsPerSec = 14 * speed
     const start = Date.now()
     revealIntervalRef.current = setInterval(() => {
@@ -180,6 +193,9 @@ function App() {
         setRevealingMessageId(null)
       }
     }, 30)
+
+    // If onboundary doesn't fire within 1s, the fallback timer keeps running
+    // If it does fire, onWord callback clears the fallback timer
   }, [])
 
   const stopRevealInterval = useCallback(() => {
@@ -224,15 +240,14 @@ function App() {
           }).catch(() => {})
         }
 
-        startRevealInterval(response, settingsRef.current.speed)
+        startRevealWithFallback(response, settingsRef.current.speed)
         await speechSynth.speak(response, settingsRef.current.accent, settingsRef.current.speed).catch(() => {})
 
         // Check if call was aborted during speech
         if (callAbortedRef.current) return
 
-        // Ensure reveal completes even if speech ended early
+        // onWord(text.length) already called on speech end, just clean up
         stopRevealInterval()
-        setRevealedChars(response.length)
         setRevealingMessageId(null)
       } catch (err) {
         if (callAbortedRef.current) return
@@ -241,27 +256,14 @@ function App() {
         setRevealedChars(0)
         const fbMsg = addMessage('ai', fallback)
         setRevealingMessageId(fbMsg.id)
-        startRevealInterval(fallback, settingsRef.current.speed)
+        startRevealWithFallback(fallback, settingsRef.current.speed)
         await speechSynth.speak(fallback, settingsRef.current.accent, settingsRef.current.speed).catch(() => {})
 
         if (callAbortedRef.current) return
 
         stopRevealInterval()
-        setRevealedChars(fallback.length)
         setRevealingMessageId(null)
       }
-
-      // Wait for reveal to finish before restarting recognition
-      await new Promise<void>((resolve) => {
-        const check = () => {
-          if (!revealIntervalRef.current) {
-            resolve()
-          } else {
-            setTimeout(check, 50)
-          }
-        }
-        check()
-      })
 
       isProcessingRef.current = false
       if (callStatusRef.current === 'connected') {
@@ -308,10 +310,9 @@ function App() {
         setRevealedChars(0)
         const aiMsg = addMessage('ai', response)
         setRevealingMessageId(aiMsg.id)
-        startRevealInterval(response, speed)
+        startRevealWithFallback(response, speed)
         await speechSynth.speak(response, accent, speed).catch(() => {})
         stopRevealInterval()
-        setRevealedChars(response.length)
         setRevealingMessageId(null)
       } catch {
         // silent fail
@@ -398,18 +399,16 @@ function App() {
 
       setRevealedChars(0)
       setRevealingMessageId(greetMsg.id)
-      startRevealInterval(greeting, speed)
+      startRevealWithFallback(greeting, speed)
       speechSynth.speak(greeting, accent, speed)
         .then(() => {
           stopRevealInterval()
-          setRevealedChars(greeting.length)
           setRevealingMessageId(null)
           setSpeakingState('listening')
           setTimeout(() => startRecognition(), 500)
         })
         .catch(() => {
           stopRevealInterval()
-          setRevealedChars(greeting.length)
           setRevealingMessageId(null)
           setSpeakingState('listening')
           setTimeout(() => startRecognition(), 500)
