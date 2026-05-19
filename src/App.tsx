@@ -164,59 +164,34 @@ function App() {
 
   const speechSynth = useSpeechSynthesis({
     onWord: (charIndex: number) => {
-      // Update target - the interval will animate char-by-char to it
-      revealTargetRef.current = charIndex
+      // Calibrate speed from boundary events for smooth constant-rate reveal
+      const now = Date.now()
+      const elapsed = (now - revealStartRef.current) / 1000
+      if (elapsed > 0.1 && charIndex > 0) {
+        revealRateRef.current = charIndex / elapsed
+      }
     },
   })
 
   const revealIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const revealTargetRef = useRef(0)
-  const revealTextRef = useRef('')
+  const revealStartRef = useRef(0)
+  const revealRateRef = useRef(0)
 
   const startRevealWithFallback = useCallback((text: string, speed: number) => {
     if (revealIntervalRef.current) clearInterval(revealIntervalRef.current)
-    revealTargetRef.current = 0
-    revealTextRef.current = text
-
-    const charsPerSec = 14 * speed
-    const startTime = Date.now()
-    let boundaryFired = false
+    revealStartRef.current = Date.now()
+    revealRateRef.current = 14 * speed // initial fallback rate (chars/sec)
 
     revealIntervalRef.current = setInterval(() => {
-      setRevealedChars((prev) => {
-        const target = revealTargetRef.current
-        if (prev < target) {
-          // Animate char-by-char toward the boundary target
-          return prev + 1
-        }
-        // If onboundary hasn't fired yet, use timer-based fallback
-        if (!boundaryFired && target === 0) {
-          const elapsed = (Date.now() - startTime) / 1000
-          const fallbackTarget = Math.min(Math.floor(elapsed * charsPerSec), text.length)
-          if (prev < fallbackTarget) {
-            return prev + 1
-          }
-        }
-        // Check if fully revealed
-        if (prev >= text.length) {
-          clearInterval(revealIntervalRef.current!)
-          revealIntervalRef.current = null
-          setRevealingMessageId(null)
-        }
-        return prev
-      })
-    }, 30)
-
-    // Mark boundary as active after first onWord call
-    const origTarget = revealTargetRef
-    const checkInterval = setInterval(() => {
-      if (origTarget.current > 0) {
-        boundaryFired = true
-        clearInterval(checkInterval)
+      const elapsed = (Date.now() - revealStartRef.current) / 1000
+      const target = Math.min(Math.floor(elapsed * revealRateRef.current), text.length)
+      setRevealedChars(target)
+      if (target >= text.length) {
+        clearInterval(revealIntervalRef.current!)
+        revealIntervalRef.current = null
+        setRevealingMessageId(null)
       }
-    }, 200)
-    // Safety cleanup
-    setTimeout(() => clearInterval(checkInterval), 5000)
+    }, 30)
   }, [])
 
   const stopRevealInterval = useCallback(() => {
