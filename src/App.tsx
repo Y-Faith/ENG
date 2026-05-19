@@ -164,38 +164,59 @@ function App() {
 
   const speechSynth = useSpeechSynthesis({
     onWord: (charIndex: number) => {
-      setRevealedChars(charIndex)
-      // Clear fallback timer if onboundary is working
-      if (revealIntervalRef.current) {
-        clearInterval(revealIntervalRef.current)
-        revealIntervalRef.current = null
-      }
+      // Update target - the interval will animate char-by-char to it
+      revealTargetRef.current = charIndex
     },
   })
 
   const revealIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const boundaryFiredRef = useRef(false)
+  const revealTargetRef = useRef(0)
+  const revealTextRef = useRef('')
 
   const startRevealWithFallback = useCallback((text: string, speed: number) => {
     if (revealIntervalRef.current) clearInterval(revealIntervalRef.current)
-    boundaryFiredRef.current = false
+    revealTargetRef.current = 0
+    revealTextRef.current = text
 
-    // Start fallback timer - will be cleared if onboundary fires
     const charsPerSec = 14 * speed
-    const start = Date.now()
+    const startTime = Date.now()
+    let boundaryFired = false
+
     revealIntervalRef.current = setInterval(() => {
-      const elapsed = (Date.now() - start) / 1000
-      const target = Math.min(Math.floor(elapsed * charsPerSec), text.length)
-      setRevealedChars(target)
-      if (target >= text.length) {
-        clearInterval(revealIntervalRef.current!)
-        revealIntervalRef.current = null
-        setRevealingMessageId(null)
-      }
+      setRevealedChars((prev) => {
+        const target = revealTargetRef.current
+        if (prev < target) {
+          // Animate char-by-char toward the boundary target
+          return prev + 1
+        }
+        // If onboundary hasn't fired yet, use timer-based fallback
+        if (!boundaryFired && target === 0) {
+          const elapsed = (Date.now() - startTime) / 1000
+          const fallbackTarget = Math.min(Math.floor(elapsed * charsPerSec), text.length)
+          if (prev < fallbackTarget) {
+            return prev + 1
+          }
+        }
+        // Check if fully revealed
+        if (prev >= text.length) {
+          clearInterval(revealIntervalRef.current!)
+          revealIntervalRef.current = null
+          setRevealingMessageId(null)
+        }
+        return prev
+      })
     }, 30)
 
-    // If onboundary doesn't fire within 1s, the fallback timer keeps running
-    // If it does fire, onWord callback clears the fallback timer
+    // Mark boundary as active after first onWord call
+    const origTarget = revealTargetRef
+    const checkInterval = setInterval(() => {
+      if (origTarget.current > 0) {
+        boundaryFired = true
+        clearInterval(checkInterval)
+      }
+    }, 200)
+    // Safety cleanup
+    setTimeout(() => clearInterval(checkInterval), 5000)
   }, [])
 
   const stopRevealInterval = useCallback(() => {
