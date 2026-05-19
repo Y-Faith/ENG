@@ -168,12 +168,12 @@ function App() {
 
   const startReveal = useCallback((text: string, speed: number) => {
     if (revealTimerRef.current) clearInterval(revealTimerRef.current)
-    const charsPerTick = 1
-    const tickMs = Math.max(30, Math.round(1000 / (14 * speed)))
-    let pos = 0
+    const msPerChar = Math.max(30, Math.round(1000 / (14 * speed)))
+    const startTime = Date.now()
 
     revealTimerRef.current = setInterval(() => {
-      pos += charsPerTick
+      const elapsed = Date.now() - startTime
+      const pos = Math.floor(elapsed / msPerChar)
       if (pos >= text.length) {
         setRevealedChars(text.length)
         clearInterval(revealTimerRef.current!)
@@ -182,7 +182,7 @@ function App() {
         return
       }
       setRevealedChars(pos)
-    }, tickMs)
+    }, 30)
   }, [])
 
   const stopReveal = useCallback(() => {
