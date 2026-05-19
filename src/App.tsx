@@ -57,6 +57,8 @@ function App() {
   const isMutedRef = useRef(isMuted)
   const callStatusRef = useRef(callStatus)
   const startRecognitionRef = useRef<() => void>(() => {})
+  const stopRecognitionRef = useRef<() => void>(() => {})
+  const callAbortedRef = useRef(false)
   const memoriesRef = useRef<api.Memory[]>([])
 
   useEffect(() => {
@@ -187,6 +189,9 @@ function App() {
       const history = messagesRef.current
       const activeApi = getActiveApi()
 
+      // Stop listening while AI is speaking
+      stopRecognitionRef.current()
+
       let correction: string | undefined
       if (correctionEnabled) {
         const c = getCorrection(userText, difficulty)
@@ -197,6 +202,10 @@ function App() {
 
       try {
         const { text: response, usedAI } = await generateAIResponse(userText, lastScene, difficulty, history, correctionEnabled, activeApi?.apiKey, activeApi?.apiUrl, activeApi?.apiModel, memoriesRef.current)
+
+        // Check if call was aborted during API call
+        if (callAbortedRef.current) return
+
         setUsingAI(usedAI)
         addMessage('ai', response)
 
@@ -210,14 +219,23 @@ function App() {
         setRevealedChars(0)
         startRevealInterval(response, settingsRef.current.speed)
         await speechSynth.speak(response, settingsRef.current.accent, settingsRef.current.speed).catch(() => {})
+
+        // Check if call was aborted during speech
+        if (callAbortedRef.current) return
+
         stopRevealInterval()
         setRevealedChars(response.length)
       } catch (err) {
+        if (callAbortedRef.current) return
+
         const fallback = "Sorry, I'm having trouble connecting. Could you say that again?"
         addMessage('ai', fallback)
         setRevealedChars(0)
         startRevealInterval(fallback, settingsRef.current.speed)
         await speechSynth.speak(fallback, settingsRef.current.accent, settingsRef.current.speed).catch(() => {})
+
+        if (callAbortedRef.current) return
+
         stopRevealInterval()
         setRevealedChars(fallback.length)
       }
@@ -310,6 +328,7 @@ function App() {
   })
 
   startRecognitionRef.current = startRecognition
+  stopRecognitionRef.current = stopRecognition
 
   const handleCall = useCallback(() => {
     setCallStatus('dialing')
@@ -317,20 +336,18 @@ function App() {
     setRevealedChars(0)
     messageIdCounter = 0
     isProcessingRef.current = false
+    callAbortedRef.current = false
 
     const initCall = async () => {
       const { lastScene, difficulty, accent, speed } = settingsRef.current
       const activeApi = getActiveApi()
 
-      // Start AI greeting request in parallel with dialing delay
       const greetingPromise = activeApi?.apiKey
         ? generateAIGreeting(lastScene, difficulty, activeApi.apiKey, activeApi.apiUrl, activeApi.apiModel)
             .catch(() => getGreeting(lastScene))
         : Promise.resolve(getGreeting(lastScene))
 
-      const delayPromise = new Promise<void>((r) => setTimeout(r, 1500))
-
-      const [, greeting] = await Promise.all([delayPromise, greetingPromise])
+      const greeting = await greetingPromise
 
       if (callStatusRef.current !== 'dialing') return
 
@@ -379,6 +396,7 @@ function App() {
     setSpeakingState('idle')
     setRevealedChars(0)
     isProcessingRef.current = false
+    callAbortedRef.current = true
 
     const currentMessages = messagesRef.current
     if (currentMessages.length > 0) {

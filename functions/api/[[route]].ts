@@ -256,7 +256,7 @@ app.post('/api/proxy', async (c) => {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ ...reqBody, model: apiModel || (reqBody as any).model }),
+      body: JSON.stringify({ ...reqBody, model: apiModel || (reqBody as any).model, enable_thinking: false }),
     })
 
     if (!response.ok) {

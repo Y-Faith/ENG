@@ -15,10 +15,10 @@ function buildSystemPrompt(scene: Scene, difficulty: Difficulty, correctionEnabl
   let memorySection = ''
   if (memories && memories.length > 0) {
     const memoryLines = memories
-      .slice(0, 20)
-      .map((m) => `- ${m.content}`)
+      .slice(0, 10)
+      .map((m) => `- ${m.content.slice(0, 80)}`)
       .join('\n')
-    memorySection = `\n\nWhat you remember about this student:\n${memoryLines}\n- Use these memories naturally in conversation. For example, if you know their name, use it. If you know their hobbies, ask about them. Do NOT explicitly say "I remember that you..." — just weave it in naturally.`
+    memorySection = `\n\nWhat you remember about this student:\n${memoryLines}\n- Use these memories naturally in conversation. Do NOT explicitly say "I remember that you..." — just weave it in naturally.`
   } else {
     memorySection = '\n\nYou have no prior memories of this student. Do NOT pretend to know anything about them — treat this as a first meeting.'
   }
