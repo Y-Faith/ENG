@@ -185,7 +185,10 @@ function App() {
     revealIntervalRef.current = setInterval(() => {
       const elapsed = (Date.now() - revealStartRef.current) / 1000
       const target = Math.min(Math.floor(elapsed * revealRateRef.current), text.length)
-      setRevealedChars(target)
+      setRevealedChars((prev) => {
+        if (target <= prev) return prev // never go backwards
+        return target
+      })
       if (target >= text.length) {
         clearInterval(revealIntervalRef.current!)
         revealIntervalRef.current = null
