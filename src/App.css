@@ -36,12 +36,6 @@ body {
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color-scheme: light;
-}
-
-/* 强制所有元素使用浅色主题 */
-* {
-  color-scheme: light;
 }
 
 .app-container {
@@ -2054,20 +2048,20 @@ body {
 
 .wechat-restriction-arrow {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  top: 40px;
+  right: 40px;
 }
 
 .arrow-up-right {
   width: 0;
   height: 0;
-  border-left: 30px solid transparent;
-  border-bottom: 30px solid #07c160;
-  transform: rotate(45deg);
+  border-left: 40px solid transparent;
+  border-bottom: 40px solid #07c160;
+  transform: rotate(-135deg);
   animation: float-arrow 1.2s ease-in-out infinite;
 }
 
 @keyframes float-arrow {
-  0%, 100% { transform: rotate(45deg) translateY(0); }
-  50% { transform: rotate(45deg) translateY(-10px); }
+  0%, 100% { transform: rotate(-135deg) translateY(0); }
+  50% { transform: rotate(-135deg) translateY(-10px); }
 }
