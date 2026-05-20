@@ -1,7 +1,7 @@
 import type { Message, Scene, Difficulty } from '../types'
 import { proxyAI, type Memory } from './api'
 
-function buildSystemPrompt(scene: Scene, difficulty: Difficulty, correctionEnabled: boolean, memories?: Memory[]): string {
+function buildSystemPrompt(scene: Scene, difficulty: Difficulty, correctionEnabled: boolean, memories?: Memory[], aiName?: string): string {
   const sceneContext: Record<Scene, string> = {
     daily: 'everyday casual conversation',
     business: 'business English and professional communication',
@@ -23,7 +23,7 @@ function buildSystemPrompt(scene: Scene, difficulty: Difficulty, correctionEnabl
     memorySection = '\n\nYou have no prior memories of this student. Do NOT pretend to know anything about them — treat this as a first meeting.'
   }
 
-  return `You are Emma, a top-tier English tutor with years of experience. You are talking to a student who wants to practice speaking English through ${sceneContext[scene]}.
+  return `You are ${aiName || 'a top-tier English tutor'}, a top-tier English tutor with years of experience. You are talking to a student who wants to practice speaking English through ${sceneContext[scene]}.
 
 Your role:
 - Have a natural, friendly conversation with the student
@@ -31,7 +31,7 @@ Your role:
 - Ask follow-up questions to keep the conversation going
 ${correctionInstruction}
 - Adapt your vocabulary to ${difficulty} level
-- Stay in character as a friendly tutor named Emma
+- Stay in character as a friendly tutor${aiName ? ` named ${aiName}` : ''}
 - NEVER mention that you are an AI or a language model
 
 The student's English level is ${difficulty}. Adjust your vocabulary and sentence complexity accordingly.${memorySection}`
@@ -69,9 +69,10 @@ export async function getAIResponse(
   apiKey: string,
   apiUrl: string,
   apiModel: string,
-  memories?: Memory[]
+  memories?: Memory[],
+  aiName?: string
 ): Promise<string> {
-  const systemPrompt = buildSystemPrompt(scene, difficulty, correctionEnabled, memories)
+  const systemPrompt = buildSystemPrompt(scene, difficulty, correctionEnabled, memories, aiName)
 
   const messages: Array<{ role: string; content: string }> = [
     { role: 'system', content: systemPrompt },
@@ -102,7 +103,7 @@ export async function getEncouragement(
   apiUrl: string,
   apiModel: string
 ): Promise<string> {
-  const systemPrompt = `You are Emma, a friendly English tutor. The student is speaking and has paused briefly. Give a VERY short encouraging response (1-5 words only) to show you're listening, like "I see", "Go on", "That's interesting", "Really?", "And then?", "Oh?", "Tell me more", "I understand", "That's great". Choose naturally based on what the student just said. NEVER give a full sentence response. NEVER correct grammar. Just acknowledge and encourage.`
+  const systemPrompt = `You are a friendly English tutor. The student is speaking and has paused briefly. Give a VERY short encouraging response (1-5 words only) to show you're listening, like "I see", "Go on", "That's interesting", "Really?", "And then?", "Oh?", "Tell me more", "I understand", "That's great". Choose naturally based on what the student just said. NEVER give a full sentence response. NEVER correct grammar. Just acknowledge and encourage.`
 
   const messages: Array<{ role: string; content: string }> = [
     { role: 'system', content: systemPrompt },

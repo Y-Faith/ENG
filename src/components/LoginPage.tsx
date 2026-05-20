@@ -37,7 +37,7 @@ export default function LoginPage({ onLogin }: Props) {
     <div className="login-overlay">
       <div className="login-card">
         <div className="login-header">
-          <h1 className="login-title">AI English Tutor</h1>
+          <h1 className="login-title">SEU-ENG</h1>
           <p className="login-subtitle">登录以开始练习</p>
         </div>
 

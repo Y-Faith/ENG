@@ -120,9 +120,9 @@ export const SCENE_ICONS: Record<Scene, string> = {
 }
 
 export const AI_NAMES: Record<Accent, string> = {
-  american: 'Emma',
+  american: 'Mike',
   british: 'Oliver',
-  australian: 'Sophie',
+  australian: 'Jack',
 }
 
 export const AI_TITLES: Record<Accent, string> = {

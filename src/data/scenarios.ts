@@ -1,10 +1,12 @@
 import type { Scene, Difficulty, Message } from '../types'
 import { fetchChatCompletion, getAIResponse, getEncouragement } from '../services/openai'
 
-const sceneGreetingPrompts: Record<Scene, string> = {
-  daily: 'This is your FIRST time meeting this student. Introduce yourself as Emma and ask how they are doing. Do NOT say "again" or imply you have met before. Keep it to 1-2 sentences.',
-  business: 'This is your FIRST time meeting this student. Introduce yourself as Emma and ask what business topic they would like to practice today. Do NOT say "again" or imply you have met before. Keep it to 1-2 sentences.',
-  travel: 'This is your FIRST time meeting this student. Introduce yourself as Emma and ask where they would like to travel or what travel scenario they want to practice. Do NOT say "again" or imply you have met before. Keep it to 1-2 sentences.',
+function getSceneGreetingPrompts(name: string): Record<Scene, string> {
+  return {
+    daily: `This is your FIRST time meeting this student. Introduce yourself as ${name} and ask how they are doing. Do NOT say "again" or imply you have met before. Keep it to 1-2 sentences.`,
+    business: `This is your FIRST time meeting this student. Introduce yourself as ${name} and ask what business topic they would like to practice today. Do NOT say "again" or imply you have met before. Keep it to 1-2 sentences.`,
+    travel: `This is your FIRST time meeting this student. Introduce yourself as ${name} and ask where they would like to travel or what travel scenario they want to practice. Do NOT say "again" or imply you have met before. Keep it to 1-2 sentences.`,
+  }
 }
 
 const MINIMAL_FALLBACKS = [
@@ -26,8 +28,8 @@ export function getGreeting(_scene: Scene): string {
   return MINIMAL_FALLBACKS[Math.floor(Math.random() * MINIMAL_FALLBACKS.length)]
 }
 
-export function getGreetingPrompt(scene: Scene): string {
-  return sceneGreetingPrompts[scene]
+export function getGreetingPrompt(scene: Scene, aiName?: string): string {
+  return getSceneGreetingPrompts(aiName || 'the tutor')[scene]
 }
 
 export function getCorrection(text: string, difficulty: Difficulty): string | null {
@@ -70,11 +72,12 @@ export async function generateAIResponse(
   apiKey?: string,
   apiUrl?: string,
   apiModel?: string,
-  memories?: import('../services/api').Memory[]
+  memories?: import('../services/api').Memory[],
+  aiName?: string
 ): Promise<{ text: string; usedAI: boolean }> {
   if (apiKey) {
     try {
-      const text = await getAIResponse(userText, history, scene, difficulty, correctionEnabled, apiKey, apiUrl || '', apiModel || '', memories)
+      const text = await getAIResponse(userText, history, scene, difficulty, correctionEnabled, apiKey, apiUrl || '', apiModel || '', memories, aiName)
       return { text, usedAI: true }
     } catch (err) {
       console.error('AI API 调用失败:', err)
@@ -89,16 +92,18 @@ export async function generateAIGreeting(
   difficulty: Difficulty,
   apiKey: string,
   apiUrl: string,
-  apiModel: string
+  apiModel: string,
+  aiName?: string
 ): Promise<string> {
   try {
-    const prompt = getGreetingPrompt(scene)
+    const prompt = getGreetingPrompt(scene, aiName)
+    const name = aiName || 'your tutor'
     const text = await fetchChatCompletion(apiKey, apiUrl, {
       model: apiModel,
       messages: [
         {
           role: 'system',
-          content: `You are Emma, a friendly English tutor. The student's level is ${difficulty}. ${prompt} Be natural and warm. NEVER mention you are an AI.`,
+          content: `You are ${name}, a friendly English tutor. The student's level is ${difficulty}. ${prompt} Be natural and warm. NEVER mention you are an AI.`,
         },
       ],
       temperature: 0.9,
@@ -135,11 +140,13 @@ export async function generateContextualResponse(
   _scene: Scene,
   apiKey?: string,
   apiUrl?: string,
-  apiModel?: string
+  apiModel?: string,
+  aiName?: string
 ): Promise<string> {
   if (apiKey) {
     try {
-      const systemPrompt = `You are Emma, a warm and empathetic English tutor. The student is sharing something in listening mode. Your role is to be a supportive listener.
+      const name = aiName || 'a warm and empathetic English tutor'
+      const systemPrompt = `You are ${name}. The student is sharing something in listening mode. Your role is to be a supportive listener.
 
 Based on what the student just said, respond with appropriate emotion:
 - If they seem frustrated: respond with empathy

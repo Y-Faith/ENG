@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { CallStatus, SpeakingState, Message, Accent, Difficulty, Scene, UserSettings, APIConfig } from './types'
-import { DEFAULT_SETTINGS } from './types'
+import { DEFAULT_SETTINGS, AI_NAMES } from './types'
 import { getGreeting, generateAIGreeting, generateAIResponse, getCorrection, generateContextualResponse } from './data/scenarios'
 import { useSpeechRecognition } from './hooks/useSpeechRecognition'
 import { useSpeechSynthesis } from './hooks/useSpeechSynthesis'
@@ -231,7 +231,7 @@ function App() {
       addMessage('user', userText, correction)
 
       try {
-        const { text: response, usedAI } = await generateAIResponse(userText, lastScene, difficulty, history, correctionEnabled, activeApi?.apiKey, activeApi?.apiUrl, activeApi?.apiModel, memoriesRef.current)
+        const { text: response, usedAI } = await generateAIResponse(userText, lastScene, difficulty, history, correctionEnabled, activeApi?.apiKey, activeApi?.apiUrl, activeApi?.apiModel, memoriesRef.current, AI_NAMES[settingsRef.current.accent])
 
         // Check if call was aborted during API call
         if (callAbortedRef.current) return
@@ -316,7 +316,7 @@ function App() {
       setSpeakingState('ai-speaking')
 
       try {
-        const response = await generateContextualResponse(finalText, history, lastScene, activeApi?.apiKey, activeApi?.apiUrl, activeApi?.apiModel)
+        const response = await generateContextualResponse(finalText, history, lastScene, activeApi?.apiKey, activeApi?.apiUrl, activeApi?.apiModel, AI_NAMES[settingsRef.current.accent])
         setRevealedChars(0)
         const aiMsg = addMessage('ai', response)
         setRevealingMessageId(aiMsg.id)
@@ -385,7 +385,7 @@ function App() {
       const activeApi = getActiveApi()
 
       const greetingPromise = activeApi?.apiKey
-        ? generateAIGreeting(lastScene, difficulty, activeApi.apiKey, activeApi.apiUrl, activeApi.apiModel)
+        ? generateAIGreeting(lastScene, difficulty, activeApi.apiKey, activeApi.apiUrl, activeApi.apiModel, AI_NAMES[settingsRef.current.accent])
             .catch(() => getGreeting(lastScene))
         : Promise.resolve(getGreeting(lastScene))
 
