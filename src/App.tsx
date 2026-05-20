@@ -37,10 +37,6 @@ function needsAuth(): boolean {
   return import.meta.env.PROD
 }
 
-function isWeChat(): boolean {
-  return navigator.userAgent.toLowerCase().includes('micromessenger')
-}
-
 function App() {
   const [settings, setSettings] = useLocalStorage<UserSettings>('seuEngSettings', DEFAULT_SETTINGS)
   const [callStatus, setCallStatus] = useState<CallStatus>('idle')
@@ -72,8 +68,6 @@ function App() {
   }, [userMemories])
 
   const loadMemoriesAsync = useCallback(() => {
-    if (isWeChat()) return
-    
     const cached = localStorage.getItem('seuEngMemories')
     if (cached) {
       try {
@@ -95,11 +89,6 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (isWeChat()) {
-      setAuthChecked(true)
-      return
-    }
-    
     if (needsAuth()) {
       api.getMe()
         .then((res) => {
@@ -610,23 +599,6 @@ function App() {
     setMessages([])
   }, [callStatus, handleHangup])
 
-  const handleUserChanged = useCallback(async () => {
-    try {
-      const res = await api.getMe()
-      setUser(res.user)
-    } catch (e) {
-      console.error('Failed to refresh user info:', e)
-    }
-  }, [])
-
-  if (isWeChat()) {
-    return (
-      <div className="app-container">
-        <WeChatRestriction />
-      </div>
-    )
-  }
-
   if (!authChecked) {
     return (
       <div className="app-container">
@@ -643,6 +615,7 @@ function App() {
 
   return (
     <div className="app-container">
+      <WeChatRestriction />
       {currentView === 'history' ? (
         <HistoryPage onClose={() => setCurrentView('call')} />
       ) : currentView === 'account' && user ? (
@@ -651,7 +624,6 @@ function App() {
           onClose={() => setCurrentView('call')}
           onLogout={() => { setCurrentView('call'); handleLogout() }}
           onMemoriesChanged={loadMemoriesAsync}
-          onUserChanged={handleUserChanged}
         />
       ) : (
         <div className="phone-frame">

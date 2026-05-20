@@ -4,20 +4,11 @@ function getToken(): string | null {
   return localStorage.getItem('auth_token')
 }
 
-function isWeChat(): boolean {
-  return typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('micromessenger')
-}
-
 async function apiCall<T>(
   endpoint: string,
   method: string = 'GET',
   body?: object
 ): Promise<T> {
-  if (isWeChat()) {
-    // 如果是微信，直接抛出错误，避免调用 API
-    throw new Error('WeChat browser not supported')
-  }
-  
   const token = getToken()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -146,8 +137,4 @@ export async function compressMemories(): Promise<{ ok: boolean }> {
 
 export async function deleteAllMemories(): Promise<{ ok: boolean }> {
   return apiCall('/api/memories/delete-all', 'POST')
-}
-
-export async function redeemCode(code: string): Promise<{ success: boolean; message: string; newLimit?: number }> {
-  return apiCall('/api/redeem', 'POST', { code })
 }

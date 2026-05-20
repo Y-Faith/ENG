@@ -36,22 +36,13 @@ function getInitial(name: string): string {
   return ch ? ch.toUpperCase() : '?'
 }
 
-interface AccountPageProps {
-  user: UserInfo
-  onClose: () => void
-  onLogout: () => void
-  onMemoriesChanged?: () => void
-  onUserChanged?: () => void
-}
-
-export function AccountPage({ user, onClose, onLogout, onMemoriesChanged, onUserChanged }: AccountPageProps) {
-  const [view, setView] = useState<'main' | 'password' | 'delete' | 'memory-compress' | 'memory-delete' | 'redeem'>('main')
+export function AccountPage({ user, onClose, onLogout, onMemoriesChanged }: AccountPageProps) {
+  const [view, setView] = useState<'main' | 'password' | 'delete' | 'memory-compress' | 'memory-delete'>('main')
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [memoryDeleteInput, setMemoryDeleteInput] = useState('')
-  const [redeemCode, setRedeemCode] = useState('')
   const [msg, setMsg] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -132,25 +123,6 @@ export function AccountPage({ user, onClose, onLogout, onMemoriesChanged, onUser
     setLoading(false)
   }
 
-  const handleRedeemCode = async () => {
-    if (!redeemCode.trim()) {
-      setMsg('请输入兑换码')
-      return
-    }
-    setLoading(true)
-    setMsg('')
-    try {
-      const result = await api.redeemCode(redeemCode.trim())
-      setMsg(result.message)
-      if (result.success) {
-        onUserChanged?.()
-      }
-    } catch (e: any) {
-      setMsg(e.message || '兑换失败')
-    }
-    setLoading(false)
-  }
-
   const usagePercent = Math.min((user.dayUsage / user.dayLimit) * 100, 100)
 
   return (
@@ -168,7 +140,7 @@ export function AccountPage({ user, onClose, onLogout, onMemoriesChanged, onUser
             <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
           </svg>
         </button>
-        <h2>{view === 'main' ? '账号详情' : view === 'password' ? '修改密码' : view === 'delete' ? '注销账号' : view === 'memory-compress' ? '记忆压缩' : view === 'memory-delete' ? '删除记忆' : '兑换码'}</h2>
+        <h2>{view === 'main' ? '账号详情' : view === 'password' ? '修改密码' : view === 'delete' ? '注销账号' : view === 'memory-compress' ? '记忆压缩' : '删除记忆'}</h2>
       </div>
 
       <div className="account-page-body">
@@ -227,13 +199,6 @@ export function AccountPage({ user, onClose, onLogout, onMemoriesChanged, onUser
             <div className="account-page-section">
               <div className="account-page-section-title">账号操作</div>
               <div className="account-page-card">
-                <button className="account-page-action" onClick={() => { setView('redeem'); setMsg(''); setRedeemCode('') }}>
-                  <div className="account-page-action-icon">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z"/></svg>
-                  </div>
-                  <span>兑换码</span>
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" className="account-page-action-arrow"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
-                </button>
                 <button className="account-page-action" onClick={() => { setView('password'); setMsg('') }}>
                   <div className="account-page-action-icon">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
@@ -360,29 +325,6 @@ export function AccountPage({ user, onClose, onLogout, onMemoriesChanged, onUser
             {msg && <p className="account-page-msg">{msg}</p>}
             <button className="account-page-btn danger" onClick={handleDeleteAccount} disabled={loading}>
               {loading ? '注销中...' : '确认注销'}
-            </button>
-          </div>
-        )}
-
-        {view === 'redeem' && (
-          <div className="account-page-form">
-            <div className="account-page-card">
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: '1.6', margin: '0 0 16px 0' }}>
-                输入兑换码可以增加每日免费使用次数，每个账号只能使用一次。
-              </p>
-              <div className="account-page-field">
-                <label>兑换码</label>
-                <input
-                  type="text"
-                  placeholder="请输入兑换码"
-                  value={redeemCode}
-                  onChange={(e) => setRedeemCode(e.target.value)}
-                />
-              </div>
-            </div>
-            {msg && <p className={`account-page-msg ${msg.includes('成功') ? 'success' : ''}`}>{msg}</p>}
-            <button className="account-page-btn primary" onClick={handleRedeemCode} disabled={loading}>
-              {loading ? '兑换中...' : '确认兑换'}
             </button>
           </div>
         )}
