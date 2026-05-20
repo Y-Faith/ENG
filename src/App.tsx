@@ -599,6 +599,15 @@ function App() {
     setMessages([])
   }, [callStatus, handleHangup])
 
+  const handleUserChanged = useCallback(async () => {
+    try {
+      const userInfo = await api.getMe()
+      setUser(userInfo)
+    } catch (e) {
+      console.error('Failed to refresh user info:', e)
+    }
+  }, [])
+
   if (!authChecked) {
     return (
       <div className="app-container">
@@ -624,6 +633,7 @@ function App() {
           onClose={() => setCurrentView('call')}
           onLogout={() => { setCurrentView('call'); handleLogout() }}
           onMemoriesChanged={loadMemoriesAsync}
+          onUserChanged={handleUserChanged}
         />
       ) : (
         <div className="phone-frame">

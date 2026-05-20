@@ -36,6 +36,12 @@ body {
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: light;
+}
+
+/* 强制所有元素使用浅色主题 */
+* {
+  color-scheme: light;
 }
 
 .app-container {

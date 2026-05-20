@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { ConversationRecord, Scene, Message } from '../types'
+import type { ConversationRecord, Scene } from '../types'
 import { SCENE_LABELS } from '../types'
 import * as api from '../services/api'
 

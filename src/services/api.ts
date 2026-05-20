@@ -138,3 +138,7 @@ export async function compressMemories(): Promise<{ ok: boolean }> {
 export async function deleteAllMemories(): Promise<{ ok: boolean }> {
   return apiCall('/api/memories/delete-all', 'POST')
 }
+
+export async function redeemCode(code: string): Promise<{ success: boolean; message: string; newLimit?: number }> {
+  return apiCall('/api/redeem', 'POST', { code })
+}
