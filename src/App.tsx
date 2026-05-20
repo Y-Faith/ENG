@@ -601,8 +601,8 @@ function App() {
 
   const handleUserChanged = useCallback(async () => {
     try {
-      const userInfo = await api.getMe()
-      setUser(userInfo)
+      const res = await api.getMe()
+      setUser(res.user)
     } catch (e) {
       console.error('Failed to refresh user info:', e)
     }
