@@ -56,7 +56,6 @@ function App() {
   const [user, setUser] = useState<api.UserInfo | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
   const [userMemories, setUserMemories] = useState<api.Memory[]>([])
-  const [isWeChatBrowser, setIsWeChatBrowser] = useState(false)
 
   const isProcessingRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
@@ -94,10 +93,7 @@ function App() {
   }, [])
 
   useEffect(() => {
-    const wx = isWeChat()
-    setIsWeChatBrowser(wx)
-    
-    if (wx) {
+    if (isWeChat()) {
       setAuthChecked(true)
       return
     }
@@ -629,7 +625,7 @@ function App() {
     )
   }
 
-  if (isWeChatBrowser) {
+  if (isWeChat()) {
     return (
       <div className="app-container">
         <WeChatRestriction />

@@ -1,16 +1,4 @@
-import { useEffect, useState } from 'react'
-
 export function WeChatRestriction() {
-  const [isWeChat, setIsWeChat] = useState(false)
-
-  useEffect(() => {
-    const ua = navigator.userAgent.toLowerCase()
-    const isWx = ua.includes('micromessenger')
-    setIsWeChat(isWx)
-  }, [])
-
-  if (!isWeChat) return null
-
   return (
     <div className="wechat-restriction-overlay">
       <div className="wechat-restriction-card">
