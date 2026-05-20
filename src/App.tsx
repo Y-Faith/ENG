@@ -72,6 +72,8 @@ function App() {
   }, [userMemories])
 
   const loadMemoriesAsync = useCallback(() => {
+    if (isWeChat()) return
+    
     const cached = localStorage.getItem('seuEngMemories')
     if (cached) {
       try {
