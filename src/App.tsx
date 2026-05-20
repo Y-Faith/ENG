@@ -14,6 +14,7 @@ import { SettingsDrawer } from './components/SettingsDrawer'
 import { HistoryPage } from './components/HistoryPage'
 import LoginPage from './components/LoginPage'
 import { AccountPage } from './components/AccountPage'
+import { WeChatRestriction } from './components/WeChatRestriction'
 import * as api from './services/api'
 import './App.css'
 
@@ -614,6 +615,7 @@ function App() {
 
   return (
     <div className="app-container">
+      <WeChatRestriction />
       {currentView === 'history' ? (
         <HistoryPage onClose={() => setCurrentView('call')} />
       ) : currentView === 'account' && user ? (

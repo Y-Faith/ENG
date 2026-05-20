@@ -1995,3 +1995,71 @@ body {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* WeChat Restriction */
+.wechat-restriction-overlay {
+  position: fixed;
+  inset: 0;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 40px 24px;
+}
+
+.wechat-restriction-card {
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+}
+
+.wechat-restriction-icon {
+  font-size: 64px;
+  margin-bottom: 24px;
+}
+
+.wechat-restriction-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1d2129;
+  margin-bottom: 12px;
+}
+
+.wechat-restriction-text {
+  font-size: 15px;
+  color: #86909c;
+  margin-bottom: 28px;
+}
+
+.wechat-restriction-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.wechat-restriction-guide p {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1d2129;
+  margin: 0;
+}
+
+.wechat-restriction-arrow {
+  margin-top: 20px;
+}
+
+.arrow-up-right {
+  width: 0;
+  height: 0;
+  border-left: 40px solid transparent;
+  border-bottom: 40px solid #07c160;
+  transform: rotate(45deg) translateX(20px);
+  animation: float-arrow 1.2s ease-in-out infinite;
+}
+
+@keyframes float-arrow {
+  0%, 100% { transform: rotate(45deg) translateX(20px) translateY(0); }
+  50% { transform: rotate(45deg) translateX(20px) translateY(-10px); }
+}
