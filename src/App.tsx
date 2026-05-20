@@ -617,18 +617,18 @@ function App() {
     }
   }, [])
 
-  if (!authChecked) {
-    return (
-      <div className="app-container">
-        <div className="loading-screen">加载中...</div>
-      </div>
-    )
-  }
-
   if (isWeChat()) {
     return (
       <div className="app-container">
         <WeChatRestriction />
+      </div>
+    )
+  }
+
+  if (!authChecked) {
+    return (
+      <div className="app-container">
+        <div className="loading-screen">加载中...</div>
       </div>
     )
   }
