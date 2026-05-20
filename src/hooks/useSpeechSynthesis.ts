@@ -6,7 +6,7 @@ function stripEmoji(text: string): string {
 }
 
 const ACCENT_VOICES: Record<Accent, { lang: string; namePattern: string }> = {
-  american: { lang: 'en-US', namePattern: 'en-US|en_US|english.*us|samantha|zira|david|mark' },
+  american: { lang: 'en-US', namePattern: 'en-US|en_US|english.*us|david|mark|samantha|zira' },
   british: { lang: 'en-GB', namePattern: 'en-GB|en_GB|english.*uk|daniel|hazel|british' },
   australian: { lang: 'en-AU', namePattern: 'en-AU|en_AU|australian|karen|lee' },
 }
