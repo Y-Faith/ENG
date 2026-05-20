@@ -2057,11 +2057,11 @@ body {
   height: 0;
   border-left: 40px solid transparent;
   border-bottom: 40px solid #07c160;
-  transform: rotate(-135deg);
+  transform: rotate(45deg);
   animation: float-arrow 1.2s ease-in-out infinite;
 }
 
 @keyframes float-arrow {
-  0%, 100% { transform: rotate(-135deg) translateY(0); }
-  50% { transform: rotate(-135deg) translateY(-10px); }
+  0%, 100% { transform: rotate(45deg) translateY(0); }
+  50% { transform: rotate(45deg) translateY(-10px); }
 }
