@@ -37,6 +37,10 @@ function needsAuth(): boolean {
   return import.meta.env.PROD
 }
 
+function isWeChat(): boolean {
+  return navigator.userAgent.toLowerCase().includes('micromessenger')
+}
+
 function App() {
   const [settings, setSettings] = useLocalStorage<UserSettings>('seuEngSettings', DEFAULT_SETTINGS)
   const [callStatus, setCallStatus] = useState<CallStatus>('idle')
@@ -52,6 +56,7 @@ function App() {
   const [user, setUser] = useState<api.UserInfo | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
   const [userMemories, setUserMemories] = useState<api.Memory[]>([])
+  const [isWeChatBrowser, setIsWeChatBrowser] = useState(false)
 
   const isProcessingRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
@@ -89,6 +94,14 @@ function App() {
   }, [])
 
   useEffect(() => {
+    const wx = isWeChat()
+    setIsWeChatBrowser(wx)
+    
+    if (wx) {
+      setAuthChecked(true)
+      return
+    }
+    
     if (needsAuth()) {
       api.getMe()
         .then((res) => {
@@ -616,6 +629,14 @@ function App() {
     )
   }
 
+  if (isWeChatBrowser) {
+    return (
+      <div className="app-container">
+        <WeChatRestriction />
+      </div>
+    )
+  }
+
   if (needsAuth() && !user) {
     return <LoginPage onLogin={handleLogin} />
   }
@@ -624,7 +645,6 @@ function App() {
 
   return (
     <div className="app-container">
-      <WeChatRestriction />
       {currentView === 'history' ? (
         <HistoryPage onClose={() => setCurrentView('call')} />
       ) : currentView === 'account' && user ? (
