@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import type { ConversationRecord, Scene } from '../types'
+import type { ConversationRecord, Scene, Message } from '../types'
 import { SCENE_LABELS } from '../types'
+import * as api from '../services/api'
 
 interface HistoryPageProps {
   onClose: () => void
@@ -24,20 +25,57 @@ function formatDuration(seconds: number): string {
   return `${secs}秒`
 }
 
+let messageIdCounter = 0
+function generateId(): string {
+  messageIdCounter++
+  return `msg-${Date.now()}-${messageIdCounter}`
+}
+
 export function HistoryPage({ onClose }: HistoryPageProps) {
   const [records, setRecords] = useState<ConversationRecord[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('seuEngHistory')
-      if (raw) {
-        const parsed = JSON.parse(raw) as ConversationRecord[]
-        setRecords(parsed.reverse())
+    async function loadHistory() {
+      try {
+        // 先尝试从服务器获取
+        const response = await api.getHistory()
+        if (response.conversations && response.conversations.length > 0) {
+          const converted: ConversationRecord[] = response.conversations.map((conv) => ({
+            id: conv.id,
+            date: conv.started_at,
+            scene: conv.scene as Scene,
+            duration: conv.duration_seconds,
+            messages: conv.messages.map((msg) => ({
+              id: generateId(),
+              role: msg.role as 'user' | 'ai',
+              content: msg.content,
+              timestamp: Date.now(),
+            })),
+          }))
+          setRecords(converted.reverse())
+          setLoading(false)
+          return
+        }
+      } catch {
+        // 服务器获取失败，尝试从本地获取
       }
-    } catch {
-      setRecords([])
+
+      // 从本地获取
+      try {
+        const raw = localStorage.getItem('seuEngHistory')
+        if (raw) {
+          const parsed = JSON.parse(raw) as ConversationRecord[]
+          setRecords(parsed.reverse())
+        }
+      } catch {
+        setRecords([])
+      }
+      setLoading(false)
     }
+
+    loadHistory()
   }, [])
 
   const handleDelete = (id: string) => {
@@ -76,7 +114,14 @@ export function HistoryPage({ onClose }: HistoryPageProps) {
       </div>
 
       <div className="history-list">
-        {records.length === 0 ? (
+        {loading ? (
+          <div className="history-empty">
+            <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" opacity="0.3">
+              <path d="M13 3a9 9 0 00-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0013 21a9 9 0 000-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+            </svg>
+            <p>加载中...</p>
+          </div>
+        ) : records.length === 0 ? (
           <div className="history-empty">
             <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" opacity="0.3">
               <path d="M13 3a9 9 0 00-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0013 21a9 9 0 000-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
