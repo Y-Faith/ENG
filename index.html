@@ -1,75 +1,72 @@
 <!doctype html>
 <html lang="zh-CN">
   <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SEU-ENG - AI英语陪练</title>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body { width: 100%; height: 100%; }
-      body {
-        background: white !important;
-        color-scheme: light !important;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      }
-      .wechat-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: white;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        z-index: 999999;
-        padding: 24px;
-      }
-      .wechat-logo {
-        font-size: 32px;
-        font-weight: bold;
-        color: #4CAF50;
-        margin-bottom: 32px;
-      }
-      .wechat-icon {
-        width: 120px;
-        height: 120px;
-        margin-bottom: 32px;
-        position: relative;
-      }
-      .wechat-arrow {
-        position: absolute;
-        top: -10px;
-        right: -20px;
-        width: 60px;
-        height: 60px;
-        animation: bounce 1s infinite;
-      }
-      @keyframes bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-10px); }
-      }
-      .wechat-text {
-        font-size: 18px;
-        text-align: center;
-        color: #333;
-        margin-bottom: 12px;
-      }
-      .wechat-hint {
-        font-size: 14px;
-        text-align: center;
-        color: #666;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
     <script>
       (function() {
         var isWeChat = /micromessenger/i.test(navigator.userAgent);
         if (isWeChat) {
+          // 微信浏览器：直接渲染提示，不加载任何其他资源
+          var style = document.createElement('style');
+          style.textContent = `
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            html, body { width: 100%; height: 100%; }
+            body {
+              background: white !important;
+              color-scheme: light !important;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
+            .wechat-overlay {
+              position: fixed;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              background: white;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              z-index: 999999;
+              padding: 24px;
+            }
+            .wechat-logo {
+              font-size: 32px;
+              font-weight: bold;
+              color: #4CAF50;
+              margin-bottom: 32px;
+            }
+            .wechat-icon {
+              width: 120px;
+              height: 120px;
+              margin-bottom: 32px;
+              position: relative;
+            }
+            .wechat-arrow {
+              position: absolute;
+              top: -10px;
+              right: -20px;
+              width: 60px;
+              height: 60px;
+              animation: bounce 1s infinite;
+            }
+            @keyframes bounce {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-10px); }
+            }
+            .wechat-text {
+              font-size: 18px;
+              text-align: center;
+              color: #333;
+              margin-bottom: 12px;
+            }
+            .wechat-hint {
+              font-size: 14px;
+              text-align: center;
+              color: #666;
+            }
+          `;
+          document.head.appendChild(style);
+          
           var overlay = document.createElement('div');
           overlay.className = 'wechat-overlay';
           overlay.innerHTML = `
@@ -88,15 +85,26 @@
             <div class="wechat-text">请在浏览器中打开</div>
             <div class="wechat-hint">点击右上角 ···，选择“在浏览器中打开”</div>
           `;
-          document.body.innerHTML = '';
-          document.body.appendChild(overlay);
-        } else {
-          var script = document.createElement('script');
-          script.type = 'module';
-          script.src = '/src/main.tsx';
-          document.body.appendChild(script);
+          
+          // 等 body 存在就渲染
+          function render() {
+            if (document.body) {
+              document.body.innerHTML = '';
+              document.body.appendChild(overlay);
+            } else {
+              setTimeout(render, 10);
+            }
+          }
+          render();
         }
       })();
     </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SEU-ENG - AI英语陪练</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
