@@ -1,6 +1,6 @@
-# CallEnglish — AI English Speaking Tutor
+# SEU-ENG — AI English Speaking Tutor
 
-**Live Website**: [https://eng-alm.pages.dev/](https://eng-alm.pages.dev/)
+**Website**: [https://eng-alm.pages.dev/](https://eng-alm.pages.dev/)
 
 An AI-powered web application that simulates phone calls for English speaking practice.
 
